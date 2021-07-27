@@ -1,1129 +1,1074 @@
-package com.huantansheng.easyphotos.ui;
+package com.huantansheng.easyphotos.ui
 
-import android.Manifest;
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
-import android.annotation.SuppressLint;
-import android.app.Activity;
-import android.app.Fragment;
-import android.content.ContentValues;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.hardware.Camera;
-import android.net.Uri;
-import android.os.Build;
-import android.os.Bundle;
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.text.TextUtils;
-import android.util.Log;
-import android.view.View;
-import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.AccelerateInterpolator;
-import android.view.animation.ScaleAnimation;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.Manifest
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.Fragment
+import android.content.ContentValues
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.hardware.Camera
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
+import android.text.TextUtils
+import android.util.Log
+import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.ScaleAnimation
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.exifinterface.media.ExifInterface
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.SimpleItemAnimator
+import com.huantansheng.easyphotos.EasyPhotos
+import com.huantansheng.easyphotos.R
+import com.huantansheng.easyphotos.constant.Code
+import com.huantansheng.easyphotos.constant.Key
+import com.huantansheng.easyphotos.databinding.ActivityEasyPhotosBinding
+import com.huantansheng.easyphotos.models.ad.AdListener
+import com.huantansheng.easyphotos.models.album.AlbumModel
+import com.huantansheng.easyphotos.models.album.AlbumModel.CallBack
+import com.huantansheng.easyphotos.models.album.entity.Photo
+import com.huantansheng.easyphotos.result.Result
+import com.huantansheng.easyphotos.setting.Setting
+import com.huantansheng.easyphotos.ui.adapter.AlbumItemsAdapter
+import com.huantansheng.easyphotos.ui.adapter.PhotosAdapter
+import com.huantansheng.easyphotos.ui.dialog.LoadingDialog
+import com.huantansheng.easyphotos.utils.Color.ColorUtils
+import com.huantansheng.easyphotos.utils.String.StringUtils
+import com.huantansheng.easyphotos.utils.bitmap.BitmapUtils
+import com.huantansheng.easyphotos.utils.media.DurationUtils
+import com.huantansheng.easyphotos.utils.media.MediaScannerConnectionUtils
+import com.huantansheng.easyphotos.utils.permission.PermissionUtil
+import com.huantansheng.easyphotos.utils.permission.PermissionUtil.PermissionCallBack
+import com.huantansheng.easyphotos.utils.settings.SettingsUtils
+import com.huantansheng.easyphotos.utils.system.SystemUtils
+import com.huantansheng.easyphotos.utils.uri.UriUtils
+import com.huantansheng.easyphotos.utils.view.gone
+import com.huantansheng.easyphotos.utils.view.invisible
+import com.huantansheng.easyphotos.utils.view.visible
+import java.io.File
+import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.concurrent.thread
 
-import androidx.annotation.IdRes;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-import androidx.exifinterface.media.ExifInterface;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-import androidx.recyclerview.widget.SimpleItemAnimator;
+open class EasyPhotosActivity : AppCompatActivity(), AlbumItemsAdapter.OnClickListener,
+    PhotosAdapter.OnClickListener, AdListener, View.OnClickListener {
+    private var mTempImageFile: File? = null
+    private var albumModel: AlbumModel? = null
+    private val photoList = ArrayList<Any?>()
+    private val albumItemList = ArrayList<Any>()
+    private val resultList = ArrayList<Photo>()
 
-import com.huantansheng.easyphotos.EasyPhotos;
-import com.huantansheng.easyphotos.R;
-import com.huantansheng.easyphotos.constant.Code;
-import com.huantansheng.easyphotos.constant.Key;
-import com.huantansheng.easyphotos.models.ad.AdListener;
-import com.huantansheng.easyphotos.models.album.AlbumModel;
-import com.huantansheng.easyphotos.models.album.entity.Photo;
-import com.huantansheng.easyphotos.result.Result;
-import com.huantansheng.easyphotos.setting.Setting;
-import com.huantansheng.easyphotos.ui.adapter.AlbumItemsAdapter;
-import com.huantansheng.easyphotos.ui.adapter.PhotosAdapter;
-import com.huantansheng.easyphotos.ui.dialog.LoadingDialog;
-import com.huantansheng.easyphotos.ui.widget.PressedTextView;
-import com.huantansheng.easyphotos.utils.Color.ColorUtils;
-import com.huantansheng.easyphotos.utils.String.StringUtils;
-import com.huantansheng.easyphotos.utils.bitmap.BitmapUtils;
-import com.huantansheng.easyphotos.utils.media.DurationUtils;
-import com.huantansheng.easyphotos.utils.media.MediaScannerConnectionUtils;
-import com.huantansheng.easyphotos.utils.permission.PermissionUtil;
-import com.huantansheng.easyphotos.utils.settings.SettingsUtils;
-import com.huantansheng.easyphotos.utils.system.SystemUtils;
-import com.huantansheng.easyphotos.utils.uri.UriUtils;
+    private val photosAdapter: PhotosAdapter by lazy(LazyThreadSafetyMode.NONE) {
+        PhotosAdapter(this, photoList, this)
+    }
 
-import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Locale;
+    private val albumItemsAdapter: AlbumItemsAdapter by lazy(LazyThreadSafetyMode.NONE) {
+        AlbumItemsAdapter(this, albumItemList, 0, this)
+    }
 
-public class EasyPhotosActivity extends AppCompatActivity implements AlbumItemsAdapter.OnClickListener, PhotosAdapter.OnClickListener, AdListener, View.OnClickListener {
+    private var gridLayoutManager: GridLayoutManager? = null
 
-    private File mTempImageFile;
 
-    private AlbumModel albumModel;
-    private ArrayList<Object> photoList = new ArrayList<>();
-    private ArrayList<Object> albumItemList = new ArrayList<>();
+    private val binding: ActivityEasyPhotosBinding by lazy(LazyThreadSafetyMode.NONE) {
+        ActivityEasyPhotosBinding.inflate(layoutInflater)
+    }
 
-    private ArrayList<Photo> resultList = new ArrayList<>();
-
-    private RecyclerView rvPhotos;
-    private PhotosAdapter photosAdapter;
-    private GridLayoutManager gridLayoutManager;
-
-    private RecyclerView rvAlbumItems;
-    private AlbumItemsAdapter albumItemsAdapter;
-    private RelativeLayout rootViewAlbumItems;
-
-    private PressedTextView tvAlbumItems, tvDone, tvPreview;
-    private TextView tvOriginal;
-    private AnimatorSet setHide;
-    private AnimatorSet setShow;
-
-    private int currAlbumItemIndex = 0;
-
-    private ImageView ivCamera;
-    private TextView tvTitle;
-
-    private LinearLayout mSecondMenus;
-
-    private RelativeLayout permissionView;
-    private TextView tvPermission;
-    private View mBottomBar;
-
-    private boolean isQ = false;
-
-    public static long startTime = 0;
-
-    public static boolean doubleClick() {
-        long now = System.currentTimeMillis();
-        if (now - startTime < 600) {
-            return true;
+    private val setHide: AnimatorSet by lazy(LazyThreadSafetyMode.NONE) {
+        val translationHide = ObjectAnimator.ofFloat(
+            binding.rvAlbumItems, "translationY", 0f,
+            binding.mBottomBar.top.toFloat()
+        )
+        val alphaHide = ObjectAnimator.ofFloat(binding.rootViewAlbumItems, "alpha", 1.0f, 0.0f)
+        translationHide.duration = 200
+        AnimatorSet().also {
+            it.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    super.onAnimationEnd(animation)
+                    binding.rootViewAlbumItems.gone()
+                }
+            })
+            it.interpolator = AccelerateInterpolator()
+            it.play(translationHide).with(alphaHide)
         }
-        startTime = now;
-        return false;
     }
-
-    public static void start(Activity activity, int requestCode) {
-        if (doubleClick()) return;
-        Intent intent = new Intent(activity, EasyPhotosActivity.class);
-        activity.startActivityForResult(intent, requestCode);
+    private val setShow: AnimatorSet by lazy(LazyThreadSafetyMode.NONE) {
+        val translationShow = ObjectAnimator.ofFloat(
+            binding.rvAlbumItems, "translationY",
+            binding.mBottomBar.top.toFloat(), 0f
+        )
+        val alphaShow = ObjectAnimator.ofFloat(binding.rootViewAlbumItems, "alpha", 0.0f, 1.0f)
+        translationShow.duration = 300
+        AnimatorSet().also {
+            it.interpolator = AccelerateDecelerateInterpolator()
+            it.play(translationShow).with(alphaShow)
+        }
     }
+    private var currAlbumItemIndex = 0
 
-    public static void start(Fragment fragment, int requestCode) {
-        if (doubleClick()) return;
-        Intent intent = new Intent(fragment.getActivity(), EasyPhotosActivity.class);
-        fragment.startActivityForResult(intent, requestCode);
-    }
+    private var isQ = false
+    var loadingDialog: LoadingDialog? = null
 
-    public static void start(androidx.fragment.app.Fragment fragment, int requestCode) {
-        if (doubleClick()) return;
-        Intent intent = new Intent(fragment.getContext(), EasyPhotosActivity.class);
-        fragment.startActivityForResult(intent, requestCode);
-    }
-
-    LoadingDialog loadingDialog;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_easy_photos);
-        hideActionBar();
-        adaptationStatusBar();
-        loadingDialog = LoadingDialog.get(this);
-        isQ = Build.VERSION.SDK_INT == Build.VERSION_CODES.Q;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(binding.root)
+        hideActionBar()
+        adaptationStatusBar()
+        loadingDialog = LoadingDialog.get(this)
+        isQ = Build.VERSION.SDK_INT == Build.VERSION_CODES.Q
         if (!Setting.onlyStartCamera && null == Setting.imageEngine) {
-            finish();
-            return;
+            finish()
+            return
         }
-        initSomeViews();
-        if (PermissionUtil.checkAndRequestPermissionsInActivity(this, getNeedPermissions())) {
-            hasPermissions();
+        initSomeViews()
+        if (PermissionUtil.checkAndRequestPermissionsInActivity(this, *needPermissions)) {
+            hasPermissions()
         } else {
-            permissionView.setVisibility(View.VISIBLE);
+            binding.rlPermissionsView.visibility = View.VISIBLE
         }
     }
 
-    private void adaptationStatusBar() {
+    private fun adaptationStatusBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            int statusColor = getWindow().getStatusBarColor();
+            var statusColor = window.statusBarColor
             if (statusColor == Color.TRANSPARENT) {
-                statusColor = ContextCompat.getColor(this, R.color.colorPrimaryDark);
+                statusColor = ContextCompat.getColor(this, R.color.colorPrimaryDark)
             }
             if (ColorUtils.isWhiteColor(statusColor)) {
-                SystemUtils.getInstance().setStatusDark(this, true);
+                SystemUtils.getInstance().setStatusDark(this, true)
             }
         }
     }
 
-    private void initSomeViews() {
-        mBottomBar = findViewById(R.id.m_bottom_bar);
-        permissionView = findViewById(R.id.rl_permissions_view);
-        tvPermission = findViewById(R.id.tv_permission);
-        rootViewAlbumItems = findViewById(R.id.root_view_album_items);
-        tvTitle = findViewById(R.id.tv_title);
+    private fun initSomeViews() {
         if (Setting.isOnlyVideo()) {
-            tvTitle.setText(R.string.video_selection_easy_photos);
+            binding.tvTitle.text = getString(R.string.video_selection_easy_photos)
         }
-        findViewById(R.id.iv_second_menu).setVisibility(Setting.showPuzzleMenu || Setting.showCleanMenu || Setting.showOriginalMenu ? View.VISIBLE : View.GONE);
-        setClick(R.id.iv_back);
+        binding.ivSecondMenu.visibility =
+            if (Setting.showPuzzleMenu || Setting.showCleanMenu || Setting.showOriginalMenu) View.VISIBLE else View.GONE
+        binding.ivBack.setOnClickListener(this)
     }
 
-    private void hasPermissions() {
-        permissionView.setVisibility(View.GONE);
+    private fun hasPermissions() {
+        binding.rlPermissionsView.visibility = View.GONE
         if (Setting.onlyStartCamera) {
-            launchCamera(Code.REQUEST_CAMERA);
-            return;
+            Code.REQUEST_CAMERA.launchCamera()
+            return
         }
-        AlbumModel.CallBack albumModelCallBack = new AlbumModel.CallBack() {
-            @Override
-            public void onAlbumWorkedCallBack() {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        loadingDialog.dismiss();
-                        onAlbumWorkedDo();
-                    }
-                });
+        val albumModelCallBack = CallBack {
+            runOnUiThread {
+                loadingDialog!!.dismiss()
+                onAlbumWorkedDo()
             }
-        };
-        loadingDialog.show();
-        albumModel = AlbumModel.getInstance();
-        albumModel.query(this, albumModelCallBack);
+        }
+        loadingDialog!!.show()
+        albumModel = AlbumModel.getInstance()
+        albumModel?.query(this, albumModelCallBack)
     }
 
-    protected String[] getNeedPermissions() {
-        if (Setting.isShowCamera) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                return new String[]{Manifest.permission.CAMERA,
+    protected val needPermissions: Array<String>
+        get() {
+            if (Setting.isShowCamera) {
+                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    arrayOf(
+                        Manifest.permission.CAMERA,
                         Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                        Manifest.permission.READ_EXTERNAL_STORAGE};
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    )
+                } else arrayOf(
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+            } else {
+                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    arrayOf(
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    )
+                } else arrayOf(
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
             }
-            return new String[]{Manifest.permission.CAMERA,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE};
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                return new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                        Manifest.permission.READ_EXTERNAL_STORAGE};
-            }
-            return new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE};
         }
-    }
 
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull final String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         PermissionUtil.onPermissionResult(this, permissions, grantResults,
-                new PermissionUtil.PermissionCallBack() {
-                    @Override
-                    public void onSuccess() {
-                        hasPermissions();
+            object : PermissionCallBack {
+                override fun onSuccess() {
+                    hasPermissions()
+                }
+
+                override fun onShouldShow() {
+                    binding.tvPermission.setText(R.string.permissions_again_easy_photos)
+                    binding.rlPermissionsView.setOnClickListener {
+                        if (PermissionUtil.checkAndRequestPermissionsInActivity(
+                                this@EasyPhotosActivity,
+                                *needPermissions
+                            )
+                        ) {
+                            hasPermissions()
+                        }
                     }
+                }
 
-                    @Override
-                    public void onShouldShow() {
-                        tvPermission.setText(R.string.permissions_again_easy_photos);
-                        permissionView.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                if (PermissionUtil.checkAndRequestPermissionsInActivity(EasyPhotosActivity.this, getNeedPermissions())) {
-                                    hasPermissions();
-                                }
-                            }
-                        });
-
+                override fun onFailed() {
+                    binding.tvPermission.setText(R.string.permissions_die_easy_photos)
+                    binding.rlPermissionsView.setOnClickListener {
+                        SettingsUtils.startMyApplicationDetailsForResult(
+                            this@EasyPhotosActivity,
+                            packageName
+                        )
                     }
-
-                    @Override
-                    public void onFailed() {
-                        tvPermission.setText(R.string.permissions_die_easy_photos);
-                        permissionView.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                SettingsUtils.startMyApplicationDetailsForResult(EasyPhotosActivity.this,
-                                        getPackageName());
-                            }
-                        });
-
-                    }
-                });
+                }
+            })
     }
-
 
     /**
      * 启动相机
      *
-     * @param requestCode startActivityForResult的请求码
+     * @param this@launchCamera startActivityForResult的请求码
      */
-    private void launchCamera(int requestCode) {
-        if (TextUtils.isEmpty(Setting.fileProviderAuthority))
-            throw new RuntimeException("AlbumBuilder" + " : 请执行 setFileProviderAuthority()方法");
+    @Suppress("KDocUnresolvedReference")
+    private fun Int.launchCamera() {
+        if (TextUtils.isEmpty(Setting.fileProviderAuthority)) throw RuntimeException("AlbumBuilder" + " : 请执行 setFileProviderAuthority()方法")
         if (!cameraIsCanUse()) {
-            permissionView.setVisibility(View.VISIBLE);
-            tvPermission.setText(R.string.permissions_die_easy_photos);
-            permissionView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    SettingsUtils.startMyApplicationDetailsForResult(EasyPhotosActivity.this,
-                            getPackageName());
-                }
-            });
-            return;
+            binding.rlPermissionsView.visibility = View.VISIBLE
+            binding.tvPermission.setText(R.string.permissions_die_easy_photos)
+            binding.rlPermissionsView.setOnClickListener {
+                SettingsUtils.startMyApplicationDetailsForResult(
+                    this@EasyPhotosActivity,
+                    packageName
+                )
+            }
+            return
         }
-        toAndroidCamera(requestCode);
+        toAndroidCamera(this)
     }
+
+    private var photoUri: Uri? = null
 
     /**
      * 启动系统相机
      *
      * @param requestCode 请求相机的请求码
      */
-    private Uri photoUri = null;
-
-    private void toAndroidCamera(int requestCode) {
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
-        if (cameraIntent.resolveActivity(getPackageManager()) != null ||
-                this.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
-
+    @SuppressLint("QueryPermissionsNeeded")
+    private fun toAndroidCamera(requestCode: Int) {
+        val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        if (cameraIntent.resolveActivity(packageManager) != null ||
+            this.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+        ) {
             if (isQ) {
-                photoUri = createImageUri();
-                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
-                cameraIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                cameraIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                startActivityForResult(cameraIntent, requestCode);
-                return;
+                photoUri = createImageUri()
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
+                cameraIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                cameraIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                startActivityForResult(cameraIntent, requestCode)
+                return
             }
-
-            createCameraTempImageFile();
-            if (mTempImageFile != null && mTempImageFile.isFile()) {
-
-                Uri imageUri = UriUtils.getUri(this, mTempImageFile);
-
-                cameraIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); //对目标应用临时授权该Uri所代表的文件
-                cameraIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION); //对目标应用临时授权该Uri所代表的文件
-
-                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);//将拍取的照片保存到指定URI
-                startActivityForResult(cameraIntent, requestCode);
+            createCameraTempImageFile()
+            if (mTempImageFile != null && mTempImageFile!!.isFile) {
+                val imageUri = UriUtils.getUri(this, mTempImageFile)
+                cameraIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) //对目标应用临时授权该Uri所代表的文件
+                cameraIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION) //对目标应用临时授权该Uri所代表的文件
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri) //将拍取的照片保存到指定URI
+                startActivityForResult(cameraIntent, requestCode)
             } else {
-                Toast.makeText(getApplicationContext(), R.string.camera_temp_file_error_easy_photos,
-                        Toast.LENGTH_SHORT).show();
+                Toast.makeText(
+                    applicationContext, R.string.camera_temp_file_error_easy_photos,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         } else {
-            Toast.makeText(getApplicationContext(), R.string.msg_no_camera_easy_photos, Toast.LENGTH_SHORT).show();
+            Toast.makeText(
+                applicationContext,
+                R.string.msg_no_camera_easy_photos,
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
-
 
     /**
      * 创建图片地址uri,用于保存拍照后的照片 Android 10以后使用这种方法
      */
-    private Uri createImageUri() {
+    private fun createImageUri(): Uri? {
         //设置保存参数到ContentValues中
-        ContentValues contentValues = new ContentValues();
+        val contentValues = ContentValues()
         //设置文件名
-        contentValues.put(MediaStore.Images.Media.DISPLAY_NAME,
-                String.valueOf(System.currentTimeMillis()));
+        contentValues.put(
+            MediaStore.Images.Media.DISPLAY_NAME,
+            System.currentTimeMillis().toString()
+        )
         //兼容Android Q和以下版本
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             //android Q中不再使用DATA字段，而用RELATIVE_PATH代替
             //RELATIVE_PATH是相对路径不是绝对路径;照片存储的地方为：存储/Pictures
-            contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures");
+            contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures")
         }
         //设置文件类型
-        contentValues.put(MediaStore.Images.Media.MIME_TYPE, "image/JPEG");
+        contentValues.put(MediaStore.Images.Media.MIME_TYPE, "image/JPEG")
         //执行insert操作，向系统文件夹中添加文件
         //EXTERNAL_CONTENT_URI代表外部存储器，该值不变
-        return getContentResolver().insert(MediaStore.Images.Media.getContentUri("external"),
-                contentValues);
+        return contentResolver.insert(
+            MediaStore.Images.Media.getContentUri("external"),
+            contentValues
+        )
     }
 
-
-    private void createCameraTempImageFile() {
-        File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+    @Suppress("DEPRECATION")
+    private fun createCameraTempImageFile() {
+        var dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
         if (null == dir) {
-            dir = new File(Environment.getExternalStorageDirectory(),
-                    File.separator + "DCIM" + File.separator + "Camera" + File.separator);
+            dir = File(
+                Environment.getExternalStorageDirectory(),
+                File.separator + "DCIM" + File.separator + "Camera" + File.separator
+            )
         }
-        if (!dir.isDirectory()) {
+        if (!dir.isDirectory) {
             if (!dir.mkdirs()) {
-                dir = getExternalFilesDir(null);
+                dir = getExternalFilesDir(null)
                 if (null == dir || !dir.exists()) {
-                    dir = getFilesDir();
+                    dir = filesDir
                     if (null == dir || !dir.exists()) {
-                        dir = getFilesDir();
+                        dir = filesDir
                         if (null == dir || !dir.exists()) {
-                            String cacheDirPath =
-                                    File.separator + "data" + File.separator + "data" + File.separator + getPackageName() + File.separator + "cache" + File.separator;
-                            dir = new File(cacheDirPath);
+                            val cacheDirPath =
+                                File.separator + "data" + File.separator + "data" + File.separator + packageName + File.separator + "cache" + File.separator
+                            dir = File(cacheDirPath)
                             if (!dir.exists()) {
-                                dir.mkdirs();
+                                dir.mkdirs()
                             }
                         }
                     }
                 }
             }
         }
-
-        try {
-            mTempImageFile = File.createTempFile("IMG", ".jpg", dir);
-        } catch (IOException e) {
-            e.printStackTrace();
-            mTempImageFile = null;
+        mTempImageFile = try {
+            File.createTempFile("IMG", ".jpg", dir)
+        } catch (e: IOException) {
+            e.printStackTrace()
+            null
         }
-
     }
-
 
     @SuppressLint("MissingSuperCall")
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 //        super.onActivityResult(requestCode, resultCode, data);
-
         if (requestCode == Code.REQUEST_SETTING_APP_DETAILS) {
-            if (PermissionUtil.checkAndRequestPermissionsInActivity(this, getNeedPermissions())) {
-                hasPermissions();
+            if (PermissionUtil.checkAndRequestPermissionsInActivity(this, *needPermissions)) {
+                hasPermissions()
             } else {
-                permissionView.setVisibility(View.VISIBLE);
+                binding.rlPermissionsView.visibility = View.VISIBLE
             }
-            return;
+            return
         }
-        switch (resultCode) {
-            case RESULT_OK:
+        when (resultCode) {
+            RESULT_OK -> {
                 if (Code.REQUEST_CAMERA == requestCode) {
                     if (isQ) {
-                        onCameraResultForQ();
-                        return;
+                        onCameraResultForQ()
+                        return
                     }
-
-                    if (mTempImageFile == null || !mTempImageFile.isFile()) {
-                        throw new RuntimeException("EasyPhotos拍照保存的图片不存在");
+                    if (mTempImageFile == null || !mTempImageFile!!.isFile) {
+                        throw RuntimeException("EasyPhotos拍照保存的图片不存在")
                     }
-                    onCameraResult();
-                    return;
+                    onCameraResult()
+                    return
                 }
-
                 if (Code.REQUEST_PREVIEW_ACTIVITY == requestCode) {
-                    if (data.getBooleanExtra(Key.PREVIEW_CLICK_DONE, false)) {
-                        done();
-                        return;
+                    if (data!!.getBooleanExtra(Key.PREVIEW_CLICK_DONE, false)) {
+                        done()
+                        return
                     }
-                    photosAdapter.change();
-                    processOriginalMenu();
-                    shouldShowMenuDone();
-                    return;
+                    photosAdapter.change()
+                    processOriginalMenu()
+                    shouldShowMenuDone()
+                    return
                 }
-
                 if (Code.REQUEST_PUZZLE_SELECTOR == requestCode) {
-                    Photo puzzlePhoto = data.getParcelableExtra(EasyPhotos.RESULT_PHOTOS);
-                    addNewPhoto(puzzlePhoto);
-                    return;
+                    if (data != null) {
+                        val puzzlePhoto: Photo? = data.getParcelableExtra(EasyPhotos.RESULT_PHOTOS)
+                        if (puzzlePhoto != null) {
+                            addNewPhoto(puzzlePhoto)
+                        }
+                    }
+                    return
                 }
-
-                break;
-            case RESULT_CANCELED:
+            }
+            RESULT_CANCELED -> {
                 if (Code.REQUEST_CAMERA == requestCode) {
                     // 删除临时文件
-                    if (mTempImageFile != null && mTempImageFile.exists()) {
-                        mTempImageFile.delete();
-                        mTempImageFile = null;
+                    if (mTempImageFile != null && mTempImageFile!!.exists()) {
+                        mTempImageFile!!.delete()
+                        mTempImageFile = null
                     }
                     if (Setting.onlyStartCamera) {
-                        finish();
+                        finish()
                     }
-                    return;
+                    return
                 }
-
                 if (Code.REQUEST_PREVIEW_ACTIVITY == requestCode) {
-                    processOriginalMenu();
-                    return;
+                    processOriginalMenu()
+                    return
                 }
-                break;
-            default:
-                break;
+            }
+            else -> {
+            }
         }
     }
 
-    String folderPath;
-    String albumName;
-
-    private void addNewPhoto(Photo photo) {
-        photo.selectedOriginal = Setting.selectedOriginal;
-
+    private var folderPath: String? = null
+    private var albumName: String? = null
+    private fun addNewPhoto(photo: Photo) {
+        photo.selectedOriginal = Setting.selectedOriginal
         if (!isQ) {
-            MediaScannerConnectionUtils.refresh(this, photo.path);
-            folderPath = new File(photo.path).getParentFile().getAbsolutePath();
-            albumName = StringUtils.getLastPathSegment(folderPath);
+            MediaScannerConnectionUtils.refresh(this, photo.path)
+            folderPath = File(photo.path).parentFile?.absolutePath
+            albumName = StringUtils.getLastPathSegment(folderPath)
         }
-
-        String albumItem_all_name = albumModel.getAllAlbumName(this);
-        albumModel.album.getAlbumItem(albumItem_all_name).addImageItem(0, photo);
-
-        albumModel.album.addAlbumItem(albumName, folderPath, photo.path, photo.uri);
-        albumModel.album.getAlbumItem(albumName).addImageItem(0, photo);
-
-        albumItemList.clear();
-        albumItemList.addAll(albumModel.getAlbumItems());
+        val albumNames = albumModel!!.getAllAlbumName(this)
+        albumModel?.album?.getAlbumItem(albumNames)?.addImageItem(0, photo)
+        albumModel?.album?.addAlbumItem(albumName, folderPath, photo.path, photo.uri)
+        albumModel?.album?.getAlbumItem(albumName)?.addImageItem(0, photo)
+        albumItemList.clear()
+        albumItemList.addAll(albumModel!!.albumItems)
         if (Setting.hasAlbumItemsAd()) {
-            int albumItemsAdIndex = 2;
-            if (albumItemList.size() < albumItemsAdIndex + 1) {
-                albumItemsAdIndex = albumItemList.size() - 1;
+            var albumItemsAdIndex = 2
+            if (albumItemList.size < albumItemsAdIndex + 1) {
+                albumItemsAdIndex = albumItemList.size - 1
             }
-            albumItemList.add(albumItemsAdIndex, Setting.albumItemsAdView);
+            albumItemList.add(albumItemsAdIndex, Setting.albumItemsAdView)
         }
-        albumItemsAdapter.notifyDataSetChanged();
-
+        albumItemsAdapter.notifyDataSetChanged()
         if (Setting.count == 1) {
-            Result.clear();
-            int res = Result.addPhoto(photo);
-            onSelectorOutOfMax(res);
+            Result.clear()
+            val res = Result.addPhoto(photo)
+            onSelectorOutOfMax(res)
         } else {
             if (Result.count() >= Setting.count) {
-                onSelectorOutOfMax(null);
+                onSelectorOutOfMax(null)
             } else {
-                int res = Result.addPhoto(photo);
-                onSelectorOutOfMax(res);
+                val res = Result.addPhoto(photo)
+                onSelectorOutOfMax(res)
             }
         }
-        rvAlbumItems.scrollToPosition(0);
-        albumItemsAdapter.setSelectedPosition(0);
-        shouldShowMenuDone();
+        binding.rvAlbumItems.scrollToPosition(0)
+        albumItemsAdapter.setSelectedPosition(0)
+        shouldShowMenuDone()
     }
 
-    private Photo getPhoto(Uri uri) {
-        Photo p = null;
-        String path;
-        String name;
-        long dateTime;
-        String type;
-        long size;
-        int width = 0;
-        int height = 0;
-        int orientation = 0;
-        String[] projections = AlbumModel.getInstance().getProjections();
-        boolean shouldReadWidth = projections.length > 8;
-        Cursor cursor = getContentResolver().query(uri, projections, null, null, null);
-        if (cursor == null) {
-            return null;
-        }
-        int albumNameCol = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME);
-
+    @SuppressLint("InlinedApi")
+    private fun getPhoto(uri: Uri?): Photo? {
+        var p: Photo? = null
+        val path: String
+        val name: String
+        val dateTime: Long
+        val type: String
+        val size: Long
+        var width = 0
+        var height = 0
+        var orientation = 0
+        val projections = AlbumModel.getInstance().projections
+        val shouldReadWidth = projections.size > 8
+        val cursor = contentResolver.query((uri)!!, projections, null, null, null) ?: return null
+        val albumNameCol = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
         if (cursor.moveToFirst()) {
-            path = cursor.getString(1);
-            name = cursor.getString(2);
-            dateTime = cursor.getLong(3);
-            type = cursor.getString(4);
-            size = cursor.getLong(5);
+            path = cursor.getString(1)
+            name = cursor.getString(2)
+            dateTime = cursor.getLong(3)
+            type = cursor.getString(4)
+            size = cursor.getLong(5)
             if (shouldReadWidth) {
-                width = cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH));
-                height = cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT));
+                width = cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH))
+                height = cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT))
                 orientation =
-                        cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns.ORIENTATION));
+                    cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns.ORIENTATION))
                 if (90 == orientation || 270 == orientation) {
-                    int temp = width;
-                    width = height;
-                    height = temp;
+                    val temp = width
+                    width = height
+                    height = temp
                 }
             }
             if (albumNameCol > 0) {
-                albumName = cursor.getString(albumNameCol);
-                folderPath = albumName;
+                albumName = cursor.getString(albumNameCol)
+                folderPath = albumName
             }
-            p = new Photo(name, uri, path, dateTime, width, height, orientation, size, 0, type);
+            p = Photo(name, uri, path, dateTime, width, height, orientation, size, 0, type)
         }
-        cursor.close();
-
-        return p;
+        cursor.close()
+        return p
     }
 
-    private void onCameraResultForQ() {
-        loadingDialog.show();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final Photo photo = getPhoto(photoUri);
-                if (photo == null) {
-                    Log.e("easyPhotos", "onCameraResultForQ() -》photo = null");
-                    return;
-                }
-
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        loadingDialog.dismiss();
-                        if (Setting.onlyStartCamera || albumModel.getAlbumItems().isEmpty()) {
-                            Intent data = new Intent();
-                            photo.selectedOriginal = Setting.selectedOriginal;
-                            resultList.add(photo);
-
-                            data.putParcelableArrayListExtra(EasyPhotos.RESULT_PHOTOS, resultList);
-                            data.putExtra(EasyPhotos.RESULT_SELECTED_ORIGINAL,
-                                    Setting.selectedOriginal);
-                            setResult(RESULT_OK, data);
-                            finish();
-                            return;
-                        }
-
-                        addNewPhoto(photo);
-                    }
-                });
-
+    private fun onCameraResultForQ() {
+        loadingDialog!!.show()
+        thread(start = true) {
+            val photo = getPhoto(photoUri)
+            if (photo == null) {
+                Log.e("easyPhotos", "onCameraResultForQ() -》photo = null")
+                return@thread
             }
-        }).start();
-    }
-
-    private void onCameraResult() {
-        LoadingDialog loading = LoadingDialog.get(this);
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HH_mm_ss",
-                        Locale.getDefault());
-                String imageName = "IMG_%s.jpg";
-                String filename = String.format(imageName, dateFormat.format(new Date()));
-                File reNameFile = new File(mTempImageFile.getParentFile(), filename);
-                if (!reNameFile.exists()) {
-                    if (mTempImageFile.renameTo(reNameFile)) {
-                        mTempImageFile = reNameFile;
-                    }
+            runOnUiThread {
+                loadingDialog!!.dismiss()
+                if (Setting.onlyStartCamera || albumModel!!.albumItems.isEmpty()) {
+                    val data = Intent()
+                    photo.selectedOriginal = Setting.selectedOriginal
+                    resultList.add(photo)
+                    data.putParcelableArrayListExtra(EasyPhotos.RESULT_PHOTOS, resultList)
+                    data.putExtra(
+                        EasyPhotos.RESULT_SELECTED_ORIGINAL,
+                        Setting.selectedOriginal
+                    )
+                    setResult(RESULT_OK, data)
+                    finish()
+                    return@runOnUiThread
                 }
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inJustDecodeBounds = true;
-                BitmapFactory.decodeFile(mTempImageFile.getAbsolutePath(), options);
-                MediaScannerConnectionUtils.refresh(EasyPhotosActivity.this, mTempImageFile);//
-                // 更新媒体库
-
-                Uri uri = UriUtils.getUri(EasyPhotosActivity.this, mTempImageFile);
-                int width = 0;
-                int height = 0;
-                int orientation = 0;
-                if (Setting.useWidth) {
-                    width = options.outWidth;
-                    height = options.outHeight;
-
-                    ExifInterface exif = null;
-                    try {
-                        exif = new ExifInterface(mTempImageFile);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    if (null != exif) {
-                        orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1);
-                        if (orientation == ExifInterface.ORIENTATION_ROTATE_90 || orientation == ExifInterface.ORIENTATION_ROTATE_270) {
-                            width = options.outHeight;
-                            height = options.outWidth;
-                        }
-                    }
-                }
-
-                final Photo photo = new Photo(mTempImageFile.getName(), uri,
-                        mTempImageFile.getAbsolutePath(),
-                        mTempImageFile.lastModified() / 1000, width, height, orientation,
-                        mTempImageFile.length(),
-                        DurationUtils.getDuration(mTempImageFile.getAbsolutePath()),
-                        options.outMimeType);
-
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (Setting.onlyStartCamera || albumModel.getAlbumItems().isEmpty()) {
-                            Intent data = new Intent();
-
-                            photo.selectedOriginal = Setting.selectedOriginal;
-                            resultList.add(photo);
-
-                            data.putParcelableArrayListExtra(EasyPhotos.RESULT_PHOTOS, resultList);
-
-                            data.putExtra(EasyPhotos.RESULT_SELECTED_ORIGINAL,
-                                    Setting.selectedOriginal);
-
-                            setResult(RESULT_OK, data);
-                            finish();
-                            return;
-                        }
-
-                        addNewPhoto(photo);
-                    }
-                });
+                addNewPhoto(photo)
             }
-        }).start();
+        }
 
     }
 
+    private fun onCameraResult() {
+//        val loading = LoadingDialog.get(this)
+        thread(start = true) {
+            val dateFormat = SimpleDateFormat(
+                "yyyyMMdd_HH_mm_ss",
+                Locale.getDefault()
+            )
+            val imageName = "IMG_%s.jpg"
+            val filename = String.format(imageName, dateFormat.format(Date()))
+            val reNameFile = File(mTempImageFile!!.parentFile, filename)
+            if (!reNameFile.exists()) {
+                if (mTempImageFile!!.renameTo(reNameFile)) {
+                    mTempImageFile = reNameFile
+                }
+            }
+            val options = BitmapFactory.Options()
+            options.inJustDecodeBounds = true
+            BitmapFactory.decodeFile(mTempImageFile!!.absolutePath, options)
+            MediaScannerConnectionUtils.refresh(this@EasyPhotosActivity, mTempImageFile) //
+            // 更新媒体库
+            val uri = UriUtils.getUri(this@EasyPhotosActivity, mTempImageFile)
+            var width = 0
+            var height = 0
+            var orientation = 0
+            if (Setting.useWidth) {
+                width = options.outWidth
+                height = options.outHeight
+                var exif: ExifInterface? = null
+                try {
+                    exif = ExifInterface((mTempImageFile)!!)
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                }
+                if (null != exif) {
+                    orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1)
+                    if (orientation == ExifInterface.ORIENTATION_ROTATE_90 || orientation == ExifInterface.ORIENTATION_ROTATE_270) {
+                        width = options.outHeight
+                        height = options.outWidth
+                    }
+                }
+            }
+            val photo = Photo(
+                mTempImageFile!!.name, uri,
+                mTempImageFile!!.absolutePath,
+                mTempImageFile!!.lastModified() / 1000, width, height, orientation,
+                mTempImageFile!!.length(),
+                DurationUtils.getDuration(mTempImageFile!!.absolutePath),
+                options.outMimeType
+            )
+            runOnUiThread {
+                if (Setting.onlyStartCamera || albumModel!!.albumItems.isEmpty()) {
+                    val data = Intent()
+                    photo.selectedOriginal = Setting.selectedOriginal
+                    resultList.add(photo)
+                    data.putParcelableArrayListExtra(EasyPhotos.RESULT_PHOTOS, resultList)
+                    data.putExtra(
+                        EasyPhotos.RESULT_SELECTED_ORIGINAL,
+                        Setting.selectedOriginal
+                    )
+                    setResult(RESULT_OK, data)
+                    finish()
+                    return@runOnUiThread
+                }
+                addNewPhoto(photo)
+            }
 
-    private void onAlbumWorkedDo() {
-        initView();
+        }
     }
 
-    private void initView() {
+    private fun onAlbumWorkedDo() {
+        initView()
+    }
 
-        if (albumModel.getAlbumItems().isEmpty()) {
+    private fun initView() {
+        if (albumModel!!.albumItems.isEmpty()) {
             if (Setting.isOnlyVideo()) {
-                Toast.makeText(getApplicationContext(), R.string.no_videos_easy_photos, Toast.LENGTH_LONG).show();
-                finish();
-                return;
+                Toast.makeText(
+                    applicationContext,
+                    R.string.no_videos_easy_photos,
+                    Toast.LENGTH_LONG
+                ).show()
+                finish()
+                return
             }
-            Toast.makeText(getApplicationContext(), R.string.no_photos_easy_photos, Toast.LENGTH_LONG).show();
-            if (Setting.isShowCamera) launchCamera(Code.REQUEST_CAMERA);
-            else finish();
-            return;
+            Toast.makeText(applicationContext, R.string.no_photos_easy_photos, Toast.LENGTH_LONG)
+                .show()
+            if (Setting.isShowCamera) Code.REQUEST_CAMERA.launchCamera() else finish()
+            return
+        }
+        EasyPhotos.setAdListener(this)
+        if (Setting.hasPhotosAd()) {
+            binding.mToolBarBottomLine.gone()
         }
 
-        EasyPhotos.setAdListener(this);
-        if (Setting.hasPhotosAd()) {
-            findViewById(R.id.m_tool_bar_bottom_line).setVisibility(View.GONE);
-        }
-        ivCamera = findViewById(R.id.fab_camera);
         if (Setting.isShowCamera && Setting.isBottomRightCamera()) {
-            ivCamera.setVisibility(View.VISIBLE);
+            binding.fabCamera.visible()
         }
         if (!Setting.showPuzzleMenu) {
-            findViewById(R.id.tv_puzzle).setVisibility(View.GONE);
+            binding.tvPuzzle.gone()
         }
-        mSecondMenus = findViewById(R.id.m_second_level_menu);
-        int columns = getResources().getInteger(R.integer.photos_columns_easy_photos);
-        tvAlbumItems = findViewById(R.id.tv_album_items);
-        tvAlbumItems.setText(albumModel.getAlbumItems().get(0).name);
-        tvDone = findViewById(R.id.tv_done);
-        rvPhotos = findViewById(R.id.rv_photos);
-        ((SimpleItemAnimator) rvPhotos.getItemAnimator()).setSupportsChangeAnimations(false);
+        val columns = resources.getInteger(R.integer.photos_columns_easy_photos)
+        binding.tvAlbumItems.text = albumModel!!.albumItems[0].name
+        (binding.rvPhotos.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
         //去除item更新的闪光
-        photoList.clear();
-        photoList.addAll(albumModel.getCurrAlbumItemPhotos(0));
-        int index = 0;
+        photoList.clear()
+        photoList.addAll(albumModel!!.getCurrAlbumItemPhotos(0))
+        var index = 0
         if (Setting.hasPhotosAd()) {
-            photoList.add(index, Setting.photosAdView);
+            photoList.add(index, Setting.photosAdView)
         }
         if (Setting.isShowCamera && !Setting.isBottomRightCamera()) {
-            if (Setting.hasPhotosAd()) index = 1;
-            photoList.add(index, null);
+            if (Setting.hasPhotosAd()) index = 1
+            photoList.add(index, null)
         }
-        photosAdapter = new PhotosAdapter(this, photoList, this);
-
-        gridLayoutManager = new GridLayoutManager(this, columns);
-        if (Setting.hasPhotosAd()) {
-            gridLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
-                @Override
-                public int getSpanSize(int position) {
-                    if (position == 0) {
-                        return gridLayoutManager.getSpanCount();//独占一行
-                    } else {
-                        return 1;//只占一行中的一列
+        with(binding.rvPhotos) {
+            layoutManager = GridLayoutManager(this@EasyPhotosActivity, columns).also {
+                if (Setting.hasPhotosAd()) {
+                    it.spanSizeLookup = object : SpanSizeLookup() {
+                        override fun getSpanSize(position: Int): Int {
+                            return if (position == 0) {
+                                gridLayoutManager!!.spanCount //独占一行
+                            } else {
+                                1 //只占一行中的一列
+                            }
+                        }
                     }
                 }
-            });
-        }
-        rvPhotos.setLayoutManager(gridLayoutManager);
-        rvPhotos.setAdapter(photosAdapter);
-        tvOriginal = findViewById(R.id.tv_original);
-        if (Setting.showOriginalMenu) {
-            processOriginalMenu();
-        } else {
-            tvOriginal.setVisibility(View.GONE);
-        }
-        tvPreview = findViewById(R.id.tv_preview);
-
-        initAlbumItems();
-        shouldShowMenuDone();
-        setClick(R.id.iv_album_items, R.id.tv_clear, R.id.iv_second_menu, R.id.tv_puzzle);
-        setClick(tvAlbumItems, rootViewAlbumItems, tvDone, tvOriginal, tvPreview, ivCamera);
-
-    }
-
-    private void hideActionBar() {
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.hide();
-        }
-    }
-
-    private void initAlbumItems() {
-
-        rvAlbumItems = findViewById(R.id.rv_album_items);
-        albumItemList.clear();
-        albumItemList.addAll(albumModel.getAlbumItems());
-
-        if (Setting.hasAlbumItemsAd()) {
-            int albumItemsAdIndex = 2;
-            if (albumItemList.size() < albumItemsAdIndex + 1) {
-                albumItemsAdIndex = albumItemList.size() - 1;
             }
-            albumItemList.add(albumItemsAdIndex, Setting.albumItemsAdView);
+            adapter = photosAdapter
         }
-        albumItemsAdapter = new AlbumItemsAdapter(this, albumItemList, 0, this);
-        rvAlbumItems.setLayoutManager(new LinearLayoutManager(this));
-        rvAlbumItems.setAdapter(albumItemsAdapter);
+
+        if (Setting.showOriginalMenu) {
+            processOriginalMenu()
+        } else {
+            binding.tvOriginal.gone()
+        }
+        initAlbumItems()
+        shouldShowMenuDone()
+        with(binding) {
+            setClick(
+                ivAlbumItems,
+                tvClear,
+                ivSecondMenu,
+                tvPuzzle,
+                tvAlbumItems,
+                rootViewAlbumItems,
+                tvDone,
+                tvOriginal,
+                tvPreview,
+                fabCamera
+            )
+        }
     }
 
-    @Override
-    public void onClick(View v) {
-        int id = v.getId();
+    private fun hideActionBar() {
+        val actionBar = supportActionBar
+        actionBar?.hide()
+    }
+
+    private fun initAlbumItems() {
+        albumItemList.clear()
+        albumItemList.addAll(albumModel!!.albumItems)
+        if (Setting.hasAlbumItemsAd()) {
+            var albumItemsAdIndex = 2
+            if (albumItemList.size < albumItemsAdIndex + 1) {
+                albumItemsAdIndex = albumItemList.size - 1
+            }
+            albumItemList.add(albumItemsAdIndex, Setting.albumItemsAdView)
+        }
+        with(binding.rvAlbumItems) {
+            layoutManager = LinearLayoutManager(this@EasyPhotosActivity)
+            adapter = albumItemsAdapter
+        }
+
+
+    }
+
+    override fun onClick(v: View) {
+        val id = v.id
         if (R.id.tv_album_items == id || R.id.iv_album_items == id) {
-            showAlbumItems(View.GONE == rootViewAlbumItems.getVisibility());
+            showAlbumItems(View.GONE == binding.rootViewAlbumItems.visibility)
         } else if (R.id.root_view_album_items == id) {
-            showAlbumItems(false);
+            showAlbumItems(false)
         } else if (R.id.iv_back == id) {
-            onBackPressed();
+            onBackPressed()
         } else if (R.id.tv_done == id) {
-            done();
+            done()
         } else if (R.id.tv_clear == id) {
             if (Result.isEmpty()) {
-                processSecondMenu();
-                return;
+                processSecondMenu()
+                return
             }
-            Result.removeAll();
-            photosAdapter.change();
-            shouldShowMenuDone();
-            processSecondMenu();
+            Result.removeAll()
+            photosAdapter.change()
+            shouldShowMenuDone()
+            processSecondMenu()
         } else if (R.id.tv_original == id) {
             if (!Setting.originalMenuUsable) {
-                Toast.makeText(getApplicationContext(), Setting.originalMenuUnusableHint, Toast.LENGTH_SHORT).show();
-                return;
+                Toast.makeText(
+                    applicationContext,
+                    Setting.originalMenuUnusableHint,
+                    Toast.LENGTH_SHORT
+                ).show()
+                return
             }
-            Setting.selectedOriginal = !Setting.selectedOriginal;
-            processOriginalMenu();
-            processSecondMenu();
+            Setting.selectedOriginal = !Setting.selectedOriginal
+            processOriginalMenu()
+            processSecondMenu()
         } else if (R.id.tv_preview == id) {
-            PreviewActivity.start(EasyPhotosActivity.this, -1, 0);
+            PreviewActivity.start(this@EasyPhotosActivity, -1, 0)
         } else if (R.id.fab_camera == id) {
-            launchCamera(Code.REQUEST_CAMERA);
+            Code.REQUEST_CAMERA.launchCamera()
         } else if (R.id.iv_second_menu == id) {
-            processSecondMenu();
+            processSecondMenu()
         } else if (R.id.tv_puzzle == id) {
-            processSecondMenu();
-            PuzzleSelectorActivity.start(this);
+            processSecondMenu()
+            PuzzleSelectorActivity.start(this)
         }
     }
 
-    public void processSecondMenu() {
-        if (mSecondMenus == null) {
-            return;
-        }
-        if (View.VISIBLE == mSecondMenus.getVisibility()) {
-            mSecondMenus.setVisibility(View.INVISIBLE);
+    open fun processSecondMenu() {
+        if (View.VISIBLE == binding.mSecondLevelMenu.visibility) {
+            binding.mSecondLevelMenu.visibility = View.INVISIBLE
             if (Setting.isShowCamera && Setting.isBottomRightCamera()) {
-                ivCamera.setVisibility(View.VISIBLE);
+                binding.fabCamera.visibility = View.VISIBLE
             }
         } else {
-            mSecondMenus.setVisibility(View.VISIBLE);
+            binding.mSecondLevelMenu.visibility = View.VISIBLE
             if (Setting.isShowCamera && Setting.isBottomRightCamera()) {
-                ivCamera.setVisibility(View.INVISIBLE);
+                binding.fabCamera.visibility = View.INVISIBLE
             }
         }
     }
 
-    private boolean clickDone = false;
-
-    private void done() {
-        if (clickDone) return;
-        clickDone = true;
-//        if (Setting.useWidth) {
+    private var clickDone = false
+    private fun done() {
+        if (clickDone) return
+        clickDone = true
+        //        if (Setting.useWidth) {
 //            resultUseWidth();
 //            return;
 //        }
-        resultFast();
+        resultFast()
     }
 
-    private void resultUseWidth() {
-        loadingDialog.show();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                int size = Result.photos.size();
-                try {
-                    for (int i = 0; i < size; i++) {
-                        Photo photo = Result.photos.get(i);
-                        if (photo.width == 0 || photo.height == 0) {
-                            BitmapUtils.calculateLocalImageSizeThroughBitmapOptions(photo);
-                        }
-                        if (BitmapUtils.needChangeWidthAndHeight(photo)) {
-                            int h = photo.width;
-                            photo.width = photo.height;
-                            photo.height = h;
-                        }
+    private fun resultUseWidth() {
+        loadingDialog!!.show()
+        thread(start = true) {
+            val size = Result.photos.size
+            try {
+                for (i in 0 until size) {
+                    val photo = Result.photos[i]
+                    if (photo.width == 0 || photo.height == 0) {
+                        BitmapUtils.calculateLocalImageSizeThroughBitmapOptions(photo)
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    if (BitmapUtils.needChangeWidthAndHeight(photo)) {
+                        val h = photo.width
+                        photo.width = photo.height
+                        photo.height = h
+                    }
                 }
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        loadingDialog.dismiss();
-                        resultFast();
-                    }
-                });
+            } catch (e: IOException) {
+                e.printStackTrace()
             }
-        }).start();
+            runOnUiThread {
+                loadingDialog!!.dismiss()
+                resultFast()
+            }
+        }
     }
 
-    private void resultFast() {
-        Intent intent = new Intent();
-        Result.processOriginal();
-        resultList.addAll(Result.photos);
-        intent.putParcelableArrayListExtra(EasyPhotos.RESULT_PHOTOS, resultList);
-        intent.putExtra(EasyPhotos.RESULT_SELECTED_ORIGINAL,
-                Setting.selectedOriginal);
-        setResult(RESULT_OK, intent);
-        finish();
+    private fun resultFast() {
+        val intent = Intent()
+        Result.processOriginal()
+        resultList.addAll(Result.photos)
+        intent.putParcelableArrayListExtra(EasyPhotos.RESULT_PHOTOS, resultList)
+        intent.putExtra(
+            EasyPhotos.RESULT_SELECTED_ORIGINAL,
+            Setting.selectedOriginal
+        )
+        setResult(RESULT_OK, intent)
+        finish()
     }
 
-    private void processOriginalMenu() {
-        if (!Setting.showOriginalMenu) return;
+    private fun processOriginalMenu() {
+        if (!Setting.showOriginalMenu) return
         if (Setting.selectedOriginal) {
-            tvOriginal.setTextColor(ContextCompat.getColor(this, R.color.easy_photos_fg_accent));
+            binding.tvOriginal.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    R.color.easy_photos_fg_accent
+                )
+            )
         } else {
             if (Setting.originalMenuUsable) {
-                tvOriginal.setTextColor(ContextCompat.getColor(this,
-                        R.color.easy_photos_fg_primary));
+                binding.tvOriginal.setTextColor(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.easy_photos_fg_primary
+                    )
+                )
             } else {
-                tvOriginal.setTextColor(ContextCompat.getColor(this,
-                        R.color.easy_photos_fg_primary_dark));
+                binding.tvOriginal.setTextColor(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.easy_photos_fg_primary_dark
+                    )
+                )
             }
         }
     }
 
-    private void showAlbumItems(boolean isShow) {
-        if (null == setShow) {
-            newAnimators();
-        }
+    private fun showAlbumItems(isShow: Boolean) {
         if (isShow) {
-            rootViewAlbumItems.setVisibility(View.VISIBLE);
-            setShow.start();
+            binding.rootViewAlbumItems.visible()
+            setShow.start()
         } else {
-            setHide.start();
+            setHide.start()
         }
-
     }
 
-    private void newAnimators() {
-        newHideAnim();
-        newShowAnim();
+
+    override fun onAlbumItemClick(position: Int, realPosition: Int) {
+        updatePhotos(realPosition)
+        showAlbumItems(false)
+        binding.tvAlbumItems.text = albumModel?.albumItems?.get(realPosition)?.name ?: ""
     }
 
-    private void newShowAnim() {
-        ObjectAnimator translationShow = ObjectAnimator.ofFloat(rvAlbumItems, "translationY",
-                mBottomBar.getTop(), 0);
-        ObjectAnimator alphaShow = ObjectAnimator.ofFloat(rootViewAlbumItems, "alpha", 0.0f, 1.0f);
-        translationShow.setDuration(300);
-        setShow = new AnimatorSet();
-        setShow.setInterpolator(new AccelerateDecelerateInterpolator());
-        setShow.play(translationShow).with(alphaShow);
-    }
-
-    private void newHideAnim() {
-        ObjectAnimator translationHide = ObjectAnimator.ofFloat(rvAlbumItems, "translationY", 0,
-                mBottomBar.getTop());
-        ObjectAnimator alphaHide = ObjectAnimator.ofFloat(rootViewAlbumItems, "alpha", 1.0f, 0.0f);
-        translationHide.setDuration(200);
-        setHide = new AnimatorSet();
-        setHide.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                super.onAnimationEnd(animation);
-                rootViewAlbumItems.setVisibility(View.GONE);
-            }
-        });
-        setHide.setInterpolator(new AccelerateInterpolator());
-        setHide.play(translationHide).with(alphaHide);
-    }
-
-    @Override
-    public void onAlbumItemClick(int position, int realPosition) {
-        updatePhotos(realPosition);
-        showAlbumItems(false);
-        tvAlbumItems.setText(albumModel.getAlbumItems().get(realPosition).name);
-    }
-
-    private void updatePhotos(int currAlbumItemIndex) {
-        this.currAlbumItemIndex = currAlbumItemIndex;
-        photoList.clear();
-        photoList.addAll(albumModel.getCurrAlbumItemPhotos(currAlbumItemIndex));
-        int index = 0;
+    private fun updatePhotos(currAlbumItemIndex: Int) {
+        this.currAlbumItemIndex = currAlbumItemIndex
+        photoList.clear()
+        photoList.addAll(albumModel!!.getCurrAlbumItemPhotos(currAlbumItemIndex))
+        var index = 0
         if (Setting.hasPhotosAd()) {
-            photoList.add(index, Setting.photosAdView);
+            photoList.add(index, Setting.photosAdView)
         }
         if (Setting.isShowCamera && !Setting.isBottomRightCamera()) {
-            if (Setting.hasPhotosAd()) index = 1;
-            photoList.add(index, null);
+            if (Setting.hasPhotosAd()) index = 1
+            photoList.add(index, null)
         }
-        photosAdapter.change();
-        rvPhotos.scrollToPosition(0);
+        photosAdapter.change()
+        binding.rvPhotos.scrollToPosition(0)
     }
 
-    private void shouldShowMenuDone() {
+    private fun shouldShowMenuDone() {
         if (Result.isEmpty()) {
-            if (View.VISIBLE == tvDone.getVisibility()) {
-                ScaleAnimation scaleHide = new ScaleAnimation(1f, 0f, 1f, 0f);
-                scaleHide.setDuration(200);
-                tvDone.startAnimation(scaleHide);
+            if (View.VISIBLE == binding.tvDone.visibility) {
+                val scaleHide = ScaleAnimation(1f, 0f, 1f, 0f)
+                scaleHide.duration = 200
+                binding.tvDone.startAnimation(scaleHide)
             }
-            tvDone.setVisibility(View.INVISIBLE);
-            tvPreview.setVisibility(View.INVISIBLE);
+            binding.tvDone.invisible()
+            binding.tvPreview.invisible()
         } else {
-            if (View.INVISIBLE == tvDone.getVisibility()) {
-                ScaleAnimation scaleShow = new ScaleAnimation(0f, 1f, 0f, 1f);
-                scaleShow.setDuration(200);
-                tvDone.startAnimation(scaleShow);
+            if (View.INVISIBLE == binding.tvDone.visibility) {
+                val scaleShow = ScaleAnimation(0f, 1f, 0f, 1f)
+                scaleShow.duration = 200
+                binding.tvDone.startAnimation(scaleShow)
             }
-            tvDone.setVisibility(View.VISIBLE);
-            tvPreview.setVisibility(View.VISIBLE);
+            binding.tvDone.visible()
+            binding.tvPreview.visible()
         }
-        tvDone.setText(getString(R.string.selector_action_done_easy_photos, Result.count(),
-                Setting.count));
+        binding.tvDone.text = getString(
+            R.string.selector_action_done_easy_photos,
+            Result.count(),
+            Setting.count
+        )
     }
 
-    @Override
-    public void onCameraClick() {
-        launchCamera(Code.REQUEST_CAMERA);
+    override fun onCameraClick() {
+        Code.REQUEST_CAMERA.launchCamera()
     }
 
-    @Override
-    public void onPhotoClick(int position, int realPosition) {
-        PreviewActivity.start(EasyPhotosActivity.this, currAlbumItemIndex, realPosition);
+    override fun onPhotoClick(position: Int, realPosition: Int) {
+        PreviewActivity.start(this@EasyPhotosActivity, currAlbumItemIndex, realPosition)
     }
 
-    @Override
-    public void onSelectorOutOfMax(@Nullable Integer result) {
+    override fun onSelectorOutOfMax(result: Int?) {
         if (result == null) {
-            if (Setting.isOnlyVideo()) {
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_reach_max_video_hint_easy_photos
-                        , Setting.count), Toast.LENGTH_SHORT).show();
-
-            } else if (Setting.showVideo) {
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_reach_max_hint_easy_photos,
-                        Setting.count), Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_reach_max_image_hint_easy_photos,
-                        Setting.count), Toast.LENGTH_SHORT).show();
+            when {
+                Setting.isOnlyVideo() -> {
+                    Toast.makeText(
+                        applicationContext, getString(
+                            R.string.selector_reach_max_video_hint_easy_photos, Setting.count
+                        ), Toast.LENGTH_SHORT
+                    ).show()
+                }
+                Setting.showVideo -> {
+                    Toast.makeText(
+                        applicationContext,
+                        getString(R.string.selector_reach_max_hint_easy_photos),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                else -> {
+                    Toast.makeText(
+                        applicationContext, getString(
+                            R.string.selector_reach_max_image_hint_easy_photos,
+                            Setting.count
+                        ), Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
-            return;
+            return
         }
-        switch (result) {
-            case Result.PICTURE_OUT:
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_reach_max_image_hint_easy_photos
-                        , Setting.complexPictureCount), Toast.LENGTH_SHORT).show();
-                break;
-            case Result.VIDEO_OUT:
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_reach_max_video_hint_easy_photos
-                        , Setting.complexVideoCount), Toast.LENGTH_SHORT).show();
-                break;
-            case Result.SINGLE_TYPE:
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_single_type_hint_easy_photos),
-                        Toast.LENGTH_SHORT).show();
-                break;
-
+        when (result) {
+            Result.PICTURE_OUT -> Toast.makeText(
+                applicationContext, getString(
+                    R.string.selector_reach_max_image_hint_easy_photos, Setting.complexPictureCount
+                ), Toast.LENGTH_SHORT
+            ).show()
+            Result.VIDEO_OUT -> Toast.makeText(
+                applicationContext, getString(
+                    R.string.selector_reach_max_video_hint_easy_photos, Setting.complexVideoCount
+                ), Toast.LENGTH_SHORT
+            ).show()
+            Result.SINGLE_TYPE -> Toast.makeText(
+                applicationContext, getString(R.string.selector_single_type_hint_easy_photos),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
-    @Override
-    public void onSelectorChanged() {
-        shouldShowMenuDone();
+    override fun onSelectorChanged() {
+        shouldShowMenuDone()
     }
 
-
-    @Override
-    public void onBackPressed() {
-
-        if (null != rootViewAlbumItems && rootViewAlbumItems.getVisibility() == View.VISIBLE) {
-            showAlbumItems(false);
-            return;
+    override fun onBackPressed() {
+        if (binding.rootViewAlbumItems.visibility == View.VISIBLE) {
+            showAlbumItems(false)
+            return
         }
-
-        if (null != mSecondMenus && View.VISIBLE == mSecondMenus.getVisibility()) {
-            processSecondMenu();
-            return;
+        if (View.VISIBLE == binding.mSecondLevelMenu.visibility) {
+            processSecondMenu()
+            return
         }
-        if (albumModel != null) albumModel.stopQuery();
+        if (albumModel != null) albumModel!!.stopQuery()
         if (Setting.hasPhotosAd()) {
-            photosAdapter.clearAd();
+            photosAdapter.clearAd()
         }
         if (Setting.hasAlbumItemsAd()) {
-            albumItemsAdapter.clearAd();
+            albumItemsAdapter.clearAd()
         }
-        setResult(RESULT_CANCELED);
-        finish();
+        setResult(RESULT_CANCELED)
+        finish()
     }
 
-    @Override
-    protected void onDestroy() {
-        if (albumModel != null) albumModel.stopQuery();
-        super.onDestroy();
+    override fun onDestroy() {
+        if (albumModel != null) albumModel!!.stopQuery()
+        super.onDestroy()
     }
 
-    @Override
-    public void onPhotosAdLoaded() {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                photosAdapter.change();
-            }
-        });
+    override fun onPhotosAdLoaded() {
+        runOnUiThread { photosAdapter.change() }
     }
 
-    @Override
-    public void onAlbumItemsAdLoaded() {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                albumItemsAdapter.notifyDataSetChanged();
-            }
-        });
+    override fun onAlbumItemsAdLoaded() {
+        runOnUiThread { albumItemsAdapter.notifyDataSetChanged() }
     }
 
-
-    private void setClick(@IdRes int... ids) {
-        for (int id : ids) {
-            findViewById(id).setOnClickListener(this);
-        }
-    }
-
-    private void setClick(View... views) {
-        for (View v : views) {
-            v.setOnClickListener(this);
+    private fun setClick(vararg views: View) {
+        for (v: View in views) {
+            v.setOnClickListener(this)
         }
     }
 
     /**
      * 返回true 表示可以使用  返回false表示不可以使用
      */
-    public boolean cameraIsCanUse() {
-        boolean isCanUse = true;
-        Camera mCamera = null;
-        try {
-            mCamera = Camera.open();
-            Camera.Parameters mParameters = mCamera.getParameters(); //针对魅族手机
-            mCamera.setParameters(mParameters);
-        } catch (Exception e) {
-            isCanUse = false;
+    @Suppress("DEPRECATION")
+    open fun cameraIsCanUse(): Boolean {
+        var isCanUse = true
+        val mCamera: Camera? = try {
+            Camera.open().also {
+                val mParameters = it.parameters //针对魅族手机
+                it.parameters = mParameters
+            }
+        } catch (e: Exception) {
+            isCanUse = false
+            null
         }
-
         if (mCamera != null) {
             try {
-                mCamera.release();
-            } catch (Exception e) {
-                e.printStackTrace();
+                mCamera.release()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
-        return isCanUse;
+        return isCanUse
+    }
+
+    companion object {
+        var startTime: Long = 0
+        private fun doubleClick(): Boolean {
+            val now = System.currentTimeMillis()
+            if (now - startTime < 600) {
+                return true
+            }
+            startTime = now
+            return false
+        }
+
+        @JvmStatic
+        fun start(activity: Activity, requestCode: Int) {
+            if (doubleClick()) return
+            val intent = Intent(activity, EasyPhotosActivity::class.java)
+            activity.startActivityForResult(intent, requestCode)
+        }
+
+        @JvmStatic
+        @Suppress("DEPRECATION")
+        fun start(fragment: Fragment, requestCode: Int) {
+            if (doubleClick()) return
+            val intent = Intent(fragment.activity, EasyPhotosActivity::class.java)
+            fragment.startActivityForResult(intent, requestCode)
+        }
+
+        @JvmStatic
+        fun start(fragment: androidx.fragment.app.Fragment, requestCode: Int) {
+            if (doubleClick()) return
+            val intent = Intent(fragment.context, EasyPhotosActivity::class.java)
+            fragment.startActivityForResult(intent, requestCode)
+        }
     }
 }
