@@ -127,7 +127,7 @@ public class PuzzleSelectorActivity extends AppCompatActivity implements View.On
         rvAlbumItems = (RecyclerView) findViewById(R.id.rv_album_items);
         LinearLayoutManager lm = new LinearLayoutManager(this);
         ArrayList<Object> list = new ArrayList<Object>(albumModel.getAlbumItems());
-        albumItemsAdapter = new AlbumItemsAdapter(this, list, 0, this);
+        albumItemsAdapter = new AlbumItemsAdapter(list, 0, this);
         rvAlbumItems.setLayoutManager(lm);
         rvAlbumItems.setAdapter(albumItemsAdapter);
     }

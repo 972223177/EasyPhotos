@@ -75,11 +75,11 @@ open class EasyPhotosActivity : AppCompatActivity(), AlbumItemsAdapter.OnClickLi
     private val resultList = ArrayList<Photo>()
 
     private val photosAdapter: PhotosAdapter by lazy(LazyThreadSafetyMode.NONE) {
-        PhotosAdapter(this, photoList, this)
+        PhotosAdapter(photoList, this)
     }
 
     private val albumItemsAdapter: AlbumItemsAdapter by lazy(LazyThreadSafetyMode.NONE) {
-        AlbumItemsAdapter(this, albumItemList, 0, this)
+        AlbumItemsAdapter(albumItemList, 0, this)
     }
 
     private var gridLayoutManager: GridLayoutManager? = null

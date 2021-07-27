@@ -1,485 +1,481 @@
-package com.huantansheng.easyphotos.ui;
+package com.huantansheng.easyphotos.ui
 
-import android.app.Activity;
-import android.content.Intent;
-import android.os.Build;
-import android.os.Bundle;
-import android.os.Handler;
-import android.text.TextUtils;
-import android.view.View;
-import android.view.WindowManager;
-import android.view.animation.AlphaAnimation;
-import android.view.animation.Animation;
-import android.view.animation.ScaleAnimation;
-import android.widget.FrameLayout;
-import android.widget.ImageView;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.app.Activity
+import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.text.TextUtils
+import android.view.View
+import android.view.WindowManager
+import android.view.animation.AlphaAnimation
+import android.view.animation.Animation
+import android.view.animation.ScaleAnimation
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.PagerSnapHelper
+import androidx.recyclerview.widget.RecyclerView
+import com.huantansheng.easyphotos.R
+import com.huantansheng.easyphotos.constant.Code
+import com.huantansheng.easyphotos.constant.Key
+import com.huantansheng.easyphotos.databinding.ActivityPreviewEasyPhotosBinding
+import com.huantansheng.easyphotos.models.album.AlbumModel
+import com.huantansheng.easyphotos.models.album.entity.Photo
+import com.huantansheng.easyphotos.result.Result
+import com.huantansheng.easyphotos.setting.Setting
 
-import androidx.annotation.IdRes;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.PagerSnapHelper;
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.huantansheng.easyphotos.R;
-import com.huantansheng.easyphotos.constant.Code;
-import com.huantansheng.easyphotos.constant.Key;
-import com.huantansheng.easyphotos.models.album.AlbumModel;
-import com.huantansheng.easyphotos.models.album.entity.Photo;
-import com.huantansheng.easyphotos.result.Result;
-import com.huantansheng.easyphotos.setting.Setting;
-import com.huantansheng.easyphotos.ui.adapter.PreviewPhotosAdapter;
-import com.huantansheng.easyphotos.ui.widget.PressedTextView;
-import com.huantansheng.easyphotos.utils.Color.ColorUtils;
-import com.huantansheng.easyphotos.utils.system.SystemUtils;
-
-import java.util.ArrayList;
+import com.huantansheng.easyphotos.ui.PreviewFragment.OnPreviewFragmentClickListener
+import com.huantansheng.easyphotos.ui.adapter.PreviewPhotosAdapter
+import com.huantansheng.easyphotos.utils.Color.ColorUtils
+import com.huantansheng.easyphotos.utils.system.SystemUtils
+import com.huantansheng.easyphotos.utils.view.gone
+import com.huantansheng.easyphotos.utils.view.visible
+import java.util.*
 
 /**
  * 预览页
  */
-public class PreviewActivity extends AppCompatActivity implements PreviewPhotosAdapter.OnClickListener, View.OnClickListener, PreviewFragment.OnPreviewFragmentClickListener {
+class PreviewActivity : AppCompatActivity(), PreviewPhotosAdapter.OnClickListener,
+    View.OnClickListener, OnPreviewFragmentClickListener {
+    private val mHideHandler = Handler(Looper.getMainLooper())
+    private val mHidePart2Runnable =
+        Runnable { SystemUtils.getInstance().systemUiHide(this@PreviewActivity, decorView) }
 
-    public static void start(Activity act, int albumItemIndex, int currIndex) {
-        Intent intent = new Intent(act, PreviewActivity.class);
-        intent.putExtra(Key.PREVIEW_ALBUM_ITEM_INDEX, albumItemIndex);
-        intent.putExtra(Key.PREVIEW_PHOTO_INDEX, currIndex);
-        act.startActivityForResult(intent, Code.REQUEST_PREVIEW_ACTIVITY);
+    private val mShowPart2Runnable = Runnable { // 延迟显示UI元素
+        binding.mBottomBar.visible()
+        binding.mTopBarLayout.visible()
+    }
+    private var mVisible = false
+
+    private val decorView: View by lazy(LazyThreadSafetyMode.NONE) {
+        window.decorView
     }
 
+    private val binding by lazy(LazyThreadSafetyMode.NONE) {
+        ActivityPreviewEasyPhotosBinding.inflate(layoutInflater)
+    }
 
-    /**
-     * 一些旧设备在UI小部件更新之间需要一个小延迟
-     * and a change of the status and navigation bar.
-     */
-    private static final int UI_ANIMATION_DELAY = 300;
-    private final Handler mHideHandler = new Handler();
-    private final Runnable mHidePart2Runnable = new Runnable() {
-        @Override
-        public void run() {
-            SystemUtils.getInstance().systemUiHide(PreviewActivity.this, decorView);
-        }
-    };
-    private RelativeLayout mBottomBar;
-    private FrameLayout mToolBar;
-    private final Runnable mShowPart2Runnable = new Runnable() {
-        @Override
-        public void run() {
-            // 延迟显示UI元素
-            mBottomBar.setVisibility(View.VISIBLE);
-            mToolBar.setVisibility(View.VISIBLE);
-        }
-    };
-    private boolean mVisible;
-    View decorView;
-    private TextView tvOriginal, tvNumber;
-    private PressedTextView tvDone;
-    private ImageView ivSelector;
-    private RecyclerView rvPhotos;
-    private PreviewPhotosAdapter adapter;
-    private PagerSnapHelper snapHelper;
-    private LinearLayoutManager lm;
-    private int index;
-    private ArrayList<Photo> photos = new ArrayList<>();
-    private int resultCode = RESULT_CANCELED;
-    private int lastPosition = 0;//记录recyclerView最后一次角标位置，用于判断是否转换了item
-    private boolean isSingle = Setting.count == 1;
-    private boolean unable = Result.count() == Setting.count;
+    private val previewAdapter: PreviewPhotosAdapter by lazy(LazyThreadSafetyMode.NONE) {
+        PreviewPhotosAdapter(photos, this)
+    }
+    private val snapHelper: PagerSnapHelper by lazy(LazyThreadSafetyMode.NONE) {
+        PagerSnapHelper()
+    }
+    private var index = 0
+    private val photos = ArrayList<Photo>()
+    private var resultCode = RESULT_CANCELED
+    private var lastPosition = 0 //记录recyclerView最后一次角标位置，用于判断是否转换了item
+    private val isSingle = Setting.count == 1
+    private var unable = Result.count() == Setting.count
 
-    private FrameLayout flFragment;
-    private PreviewFragment previewFragment;
-    private int statusColor;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        decorView = getWindow().getDecorView();
-        SystemUtils.getInstance().systemUiInit(this, decorView);
-
-        setContentView(R.layout.activity_preview_easy_photos);
-
-        hideActionBar();
-        adaptationStatusBar();
+    private var previewFragment: PreviewFragment? = null
+    private var statusColor = 0
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        SystemUtils.getInstance().systemUiInit(this, decorView)
+        setContentView(binding.root)
+        hideActionBar()
+        adaptationStatusBar()
         if (null == AlbumModel.instance) {
-            finish();
-            return;
+            finish()
+            return
         }
-        initData();
-        initView();
+        initData()
+        initView()
     }
-
-    private void adaptationStatusBar() {
+    @Suppress("DEPRECATION")
+    private fun adaptationStatusBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            statusColor = ContextCompat.getColor(this, R.color.easy_photos_status_bar);
+            statusColor = ContextCompat.getColor(this, R.color.easy_photos_status_bar)
             if (ColorUtils.isWhiteColor(statusColor)) {
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+                window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
             }
         }
     }
 
-    private void hideActionBar() {
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.hide();
-        }
+    private fun hideActionBar() {
+        val actionBar = supportActionBar
+        actionBar?.hide()
     }
 
-
-    private void initData() {
-        Intent intent = getIntent();
-        int albumItemIndex = intent.getIntExtra(Key.PREVIEW_ALBUM_ITEM_INDEX, 0);
-        photos.clear();
-
+    private fun initData() {
+        val intent = intent
+        val albumItemIndex = intent.getIntExtra(Key.PREVIEW_ALBUM_ITEM_INDEX, 0)
+        photos.clear()
         if (albumItemIndex == -1) {
-            photos.addAll(Result.photos);
+            photos.addAll(Result.photos)
         } else {
-            photos.addAll(AlbumModel.instance.getCurrAlbumItemPhotos(albumItemIndex));
+            photos.addAll(AlbumModel.instance.getCurrAlbumItemPhotos(albumItemIndex))
         }
-        index = intent.getIntExtra(Key.PREVIEW_PHOTO_INDEX, 0);
-
-        lastPosition = index;
-        mVisible = true;
+        index = intent.getIntExtra(Key.PREVIEW_PHOTO_INDEX, 0)
+        lastPosition = index
+        mVisible = true
     }
 
-    private void toggle() {
+    private fun toggle() {
         if (mVisible) {
-            hide();
+            hide()
         } else {
-            show();
+            show()
         }
     }
 
-    private void hide() {
+    private fun hide() {
         // Hide UI first
-        AlphaAnimation hideAnimation = new AlphaAnimation(1.0f, 0.0f);
-        hideAnimation.setAnimationListener(new Animation.AnimationListener() {
-            @Override
-            public void onAnimationStart(Animation animation) {
-
+        val hideAnimation = AlphaAnimation(1.0f, 0.0f)
+        hideAnimation.setAnimationListener(object : Animation.AnimationListener {
+            override fun onAnimationStart(animation: Animation) {}
+            override fun onAnimationEnd(animation: Animation) {
+                binding.mBottomBar.gone()
+                binding.mTopBarLayout.gone()
             }
 
-            @Override
-            public void onAnimationEnd(Animation animation) {
-                mBottomBar.setVisibility(View.GONE);
-                mToolBar.setVisibility(View.GONE);
-            }
-
-            @Override
-            public void onAnimationRepeat(Animation animation) {
-
-            }
-        });
-        hideAnimation.setDuration(UI_ANIMATION_DELAY);
-        mBottomBar.startAnimation(hideAnimation);
-        mToolBar.startAnimation(hideAnimation);
-        mVisible = false;
+            override fun onAnimationRepeat(animation: Animation) {}
+        })
+        hideAnimation.duration = UI_ANIMATION_DELAY.toLong()
+        binding.mBottomBar.startAnimation(hideAnimation)
+        binding.mTopBarLayout.startAnimation(hideAnimation)
+        mVisible = false
 
         // Schedule a runnable to remove the status and navigation bar after a delay
-        mHideHandler.removeCallbacks(mShowPart2Runnable);
-
-        mHideHandler.postDelayed(mHidePart2Runnable, UI_ANIMATION_DELAY);
-
+        mHideHandler.removeCallbacks(mShowPart2Runnable)
+        mHideHandler.postDelayed(mHidePart2Runnable, UI_ANIMATION_DELAY.toLong())
     }
 
-
-    private void show() {
+    private fun show() {
         // Show the system bar
         if (Build.VERSION.SDK_INT >= 16) {
-            SystemUtils.getInstance().systemUiShow(this, decorView);
+            SystemUtils.getInstance().systemUiShow(this, decorView)
         }
-
-        mVisible = true;
+        mVisible = true
 
         // Schedule a runnable to display UI elements after a delay
-        mHideHandler.removeCallbacks(mHidePart2Runnable);
-        mHideHandler.post(mShowPart2Runnable);
+        mHideHandler.removeCallbacks(mHidePart2Runnable)
+        mHideHandler.post(mShowPart2Runnable)
     }
 
-    @Override
-    public void onPhotoClick() {
-        toggle();
+    override fun onPhotoClick() {
+        toggle()
     }
 
-    @Override
-    public void onPhotoScaleChanged() {
-        if (mVisible) hide();
+    override fun onPhotoScaleChanged() {
+        if (mVisible) hide()
     }
 
-    @Override
-    public void onBackPressed() {
-        doBack();
+    override fun onBackPressed() {
+        doBack()
     }
 
-    private void doBack() {
-        Intent intent = new Intent();
-        intent.putExtra(Key.PREVIEW_CLICK_DONE, false);
-        setResult(resultCode, intent);
-        finish();
+    private fun doBack() {
+        val intent = Intent()
+        intent.putExtra(Key.PREVIEW_CLICK_DONE, false)
+        setResult(resultCode, intent)
+        finish()
     }
 
-    private void initView() {
-        setClick(R.id.iv_back, R.id.tv_edit, R.id.tv_selector);
-
-        mToolBar = (FrameLayout) findViewById(R.id.m_top_bar_layout);
+    private fun initView() {
         if (!SystemUtils.getInstance().hasNavigationBar(this)) {
-            FrameLayout mRootView = (FrameLayout) findViewById(R.id.m_root_view);
-            mRootView.setFitsSystemWindows(true);
-            mToolBar.setPadding(0, SystemUtils.getInstance().getStatusBarHeight(this), 0, 0);
+            val mRootView = findViewById<View>(R.id.m_root_view) as FrameLayout
+            mRootView.fitsSystemWindows = true
+            binding.mTopBarLayout.setPadding(
+                0,
+                SystemUtils.getInstance().getStatusBarHeight(this),
+                0,
+                0
+            )
             if (ColorUtils.isWhiteColor(statusColor)) {
-                SystemUtils.getInstance().setStatusDark(this, true);
+                SystemUtils.getInstance().setStatusDark(this, true)
             }
         }
-        mBottomBar = (RelativeLayout) findViewById(R.id.m_bottom_bar);
-        ivSelector = (ImageView) findViewById(R.id.iv_selector);
-        tvNumber = (TextView) findViewById(R.id.tv_number);
-        tvDone = (PressedTextView) findViewById(R.id.tv_done);
-        tvOriginal = (TextView) findViewById(R.id.tv_original);
-        flFragment = (FrameLayout) findViewById(R.id.fl_fragment);
         previewFragment =
-                (PreviewFragment) getSupportFragmentManager().findFragmentById(R.id.fragment_preview);
+            supportFragmentManager.findFragmentById(R.id.fragment_preview) as PreviewFragment?
         if (Setting.showOriginalMenu) {
-            processOriginalMenu();
+            processOriginalMenu()
         } else {
-            tvOriginal.setVisibility(View.GONE);
+            binding.tvOriginal.gone()
         }
-
-        setClick(tvOriginal, tvDone, ivSelector);
-
-        initRecyclerView();
-        shouldShowMenuDone();
-    }
-
-    private void initRecyclerView() {
-        rvPhotos = (RecyclerView) findViewById(R.id.rv_photos);
-        adapter = new PreviewPhotosAdapter(this, photos, this);
-        lm = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
-        rvPhotos.setLayoutManager(lm);
-        rvPhotos.setAdapter(adapter);
-        rvPhotos.scrollToPosition(index);
-        toggleSelector();
-        snapHelper = new PagerSnapHelper();
-        snapHelper.attachToRecyclerView(rvPhotos);
-        rvPhotos.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                super.onScrollStateChanged(recyclerView, newState);
-
-                View view = snapHelper.findSnapView(lm);
-                if (view == null) {
-                    return;
-                }
-                int position = lm.getPosition(view);
-                if (lastPosition == position) {
-                    return;
-                }
-                lastPosition = position;
-                previewFragment.setSelectedPosition(-1);
-                tvNumber.setText(getString(R.string.preview_current_number_easy_photos,
-                        lastPosition + 1, photos.size()));
-                toggleSelector();
-            }
-        });
-        tvNumber.setText(getString(R.string.preview_current_number_easy_photos, index + 1,
-                photos.size()));
-    }
-
-    private boolean clickDone = false;
-
-    @Override
-    public void onClick(View v) {
-        int id = v.getId();
-        if (R.id.iv_back == id) {
-            doBack();
-        } else if (R.id.tv_selector == id) {
-            updateSelector();
-        } else if (R.id.iv_selector == id) {
-            updateSelector();
-        } else if (R.id.tv_original == id) {
-            if (!Setting.originalMenuUsable) {
-                Toast.makeText(getApplicationContext(), Setting.originalMenuUnusableHint, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            Setting.selectedOriginal = !Setting.selectedOriginal;
-            processOriginalMenu();
-        } else if (R.id.tv_done == id) {
-            if (clickDone) return;
-            clickDone = true;
-            Intent intent = new Intent();
-            intent.putExtra(Key.PREVIEW_CLICK_DONE, true);
-            setResult(RESULT_OK, intent);
-            finish();
+        with(binding) {
+            setClick(ivBack, tvEdit, tvSelector, tvOriginal, tvDone, ivSelector)
         }
-//        else if (R.id.m_bottom_bar == id) {
-//
-//        } else if (R.id.tv_edit == id) {
-//
-//        }
+        initRecyclerView()
+        shouldShowMenuDone()
     }
 
-    private void processOriginalMenu() {
+    private fun initRecyclerView() {
+        with(binding.rvPhotos) {
+            adapter = previewAdapter
+            val lm =
+                LinearLayoutManager(this@PreviewActivity, LinearLayoutManager.HORIZONTAL, false)
+            layoutManager = lm
+            scrollToPosition(index)
+            toggleSelector()
+            snapHelper.attachToRecyclerView(this)
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    super.onScrollStateChanged(recyclerView, newState)
+                    val view = snapHelper.findSnapView(lm) ?: return
+                    val position = lm.getPosition(view)
+                    if (lastPosition == position) {
+                        return
+                    }
+                    lastPosition = position
+                    previewFragment!!.setSelectedPosition(-1)
+                    binding.tvNumber.text = getString(
+                        R.string.preview_current_number_easy_photos,
+                        lastPosition + 1, photos.size
+                    )
+                    toggleSelector()
+                }
+            })
+            binding.tvNumber.text = getString(
+                R.string.preview_current_number_easy_photos, index + 1,
+                photos.size
+            )
+        }
+    }
+
+    private var clickDone = false
+    override fun onClick(v: View) {
+        when (v.id) {
+            R.id.iv_back -> {
+                doBack()
+            }
+            R.id.tv_selector -> {
+                updateSelector()
+            }
+            R.id.iv_selector -> {
+                updateSelector()
+            }
+            R.id.tv_original -> {
+                if (!Setting.originalMenuUsable) {
+                    Toast.makeText(
+                        applicationContext,
+                        Setting.originalMenuUnusableHint,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return
+                }
+                Setting.selectedOriginal = !Setting.selectedOriginal
+                processOriginalMenu()
+            }
+            R.id.tv_done -> {
+                if (clickDone) return
+                clickDone = true
+                val intent = Intent()
+                intent.putExtra(Key.PREVIEW_CLICK_DONE, true)
+                setResult(RESULT_OK, intent)
+                finish()
+            }
+        }
+    }
+
+    private fun processOriginalMenu() {
         if (Setting.selectedOriginal) {
-            tvOriginal.setTextColor(ContextCompat.getColor(this, R.color.easy_photos_fg_accent));
+            binding.tvOriginal.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    R.color.easy_photos_fg_accent
+                )
+            )
         } else {
             if (Setting.originalMenuUsable) {
-                tvOriginal.setTextColor(ContextCompat.getColor(this,
-                        R.color.easy_photos_fg_primary));
+                binding.tvOriginal.setTextColor(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.easy_photos_fg_primary
+                    )
+                )
             } else {
-                tvOriginal.setTextColor(ContextCompat.getColor(this,
-                        R.color.easy_photos_fg_primary_dark));
+                binding.tvOriginal.setTextColor(
+                    ContextCompat.getColor(
+                        this,
+                        R.color.easy_photos_fg_primary_dark
+                    )
+                )
             }
         }
     }
 
-    private void toggleSelector() {
-        if (photos.get(lastPosition).selected) {
-            ivSelector.setImageResource(R.drawable.ic_selector_true_easy_photos);
+    private fun toggleSelector() {
+        if (photos[lastPosition].selected) {
+            binding.ivSelector.setImageResource(R.drawable.ic_selector_true_easy_photos)
             if (!Result.isEmpty()) {
-                int count = Result.count();
-                for (int i = 0; i < count; i++) {
-                    if (photos.get(lastPosition).path.equals(Result.getPhotoPath(i))) {
-                        previewFragment.setSelectedPosition(i);
-                        break;
+                val count = Result.count()
+                for (i in 0 until count) {
+                    if (photos[lastPosition].path == Result.getPhotoPath(i)) {
+                        previewFragment!!.setSelectedPosition(i)
+                        break
                     }
                 }
             }
         } else {
-            ivSelector.setImageResource(R.drawable.ic_selector_easy_photos);
+            binding.ivSelector.setImageResource(R.drawable.ic_selector_easy_photos)
         }
-        previewFragment.notifyDataSetChanged();
-        shouldShowMenuDone();
+        previewFragment!!.notifyDataSetChanged()
+        shouldShowMenuDone()
     }
 
-    private void updateSelector() {
-        resultCode = RESULT_OK;
-        Photo item = photos.get(lastPosition);
+    private fun updateSelector() {
+        resultCode = RESULT_OK
+        val item = photos[lastPosition]
         if (isSingle) {
-            singleSelector(item);
-            return;
+            singleSelector(item)
+            return
         }
         if (unable) {
             if (item.selected) {
-                Result.removePhoto(item);
+                Result.removePhoto(item)
                 if (unable) {
-                    unable = false;
+                    unable = false
                 }
-                toggleSelector();
-                return;
+                toggleSelector()
+                return
             }
-            if (Setting.isOnlyVideo()) {
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_reach_max_video_hint_easy_photos
-                        , Setting.count), Toast.LENGTH_SHORT).show();
-
-            } else if (Setting.showVideo) {
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_reach_max_hint_easy_photos,
-                        Setting.count), Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(getApplicationContext(), getString(R.string.selector_reach_max_image_hint_easy_photos,
-                        Setting.count), Toast.LENGTH_SHORT).show();
+            when {
+                Setting.isOnlyVideo() -> {
+                    Toast.makeText(
+                        applicationContext, getString(
+                            R.string.selector_reach_max_video_hint_easy_photos, Setting.count
+                        ), Toast.LENGTH_SHORT
+                    ).show()
+                }
+                Setting.showVideo -> {
+                    Toast.makeText(
+                        applicationContext,
+                        getString(R.string.selector_reach_max_hint_easy_photos),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                else -> {
+                    Toast.makeText(
+                        applicationContext, getString(
+                            R.string.selector_reach_max_image_hint_easy_photos,
+                            Setting.count
+                        ), Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
-            return;
+            return
         }
-        item.selected = !item.selected;
+        item.selected = !item.selected
         if (item.selected) {
-            int res = Result.addPhoto(item);
+            val res = Result.addPhoto(item)
             if (res != 0) {
-                item.selected = false;
-                switch (res) {
-                    case Result.PICTURE_OUT:
-                        Toast.makeText(getApplicationContext(),
-                                getString(R.string.selector_reach_max_image_hint_easy_photos,
-                                        Setting.complexPictureCount), Toast.LENGTH_SHORT).show();
-                        break;
-                    case Result.VIDEO_OUT:
-                        Toast.makeText(getApplicationContext(),
-                                getString(R.string.selector_reach_max_video_hint_easy_photos,
-                                        Setting.complexVideoCount), Toast.LENGTH_SHORT).show();
-                        break;
-                    case Result.SINGLE_TYPE:
-                        Toast.makeText(getApplicationContext(), getString(R.string.selector_single_type_hint_easy_photos), Toast.LENGTH_SHORT).show();
-                        break;
+                item.selected = false
+                when (res) {
+                    Result.PICTURE_OUT -> Toast.makeText(
+                        applicationContext,
+                        getString(
+                            R.string.selector_reach_max_image_hint_easy_photos,
+                            Setting.complexPictureCount
+                        ), Toast.LENGTH_SHORT
+                    ).show()
+                    Result.VIDEO_OUT -> Toast.makeText(
+                        applicationContext,
+                        getString(
+                            R.string.selector_reach_max_video_hint_easy_photos,
+                            Setting.complexVideoCount
+                        ), Toast.LENGTH_SHORT
+                    ).show()
+                    Result.SINGLE_TYPE -> Toast.makeText(
+                        applicationContext,
+                        getString(R.string.selector_single_type_hint_easy_photos),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                return;
+                return
             }
             if (Result.count() == Setting.count) {
-                unable = true;
+                unable = true
             }
         } else {
-            Result.removePhoto(item);
-            previewFragment.setSelectedPosition(-1);
+            Result.removePhoto(item)
+            previewFragment!!.setSelectedPosition(-1)
             if (unable) {
-                unable = false;
+                unable = false
             }
         }
-        toggleSelector();
+        toggleSelector()
     }
 
-    private void singleSelector(Photo photo) {
+    private fun singleSelector(photo: Photo) {
         if (!Result.isEmpty()) {
-            if (Result.getPhotoPath(0).equals(photo.path)) {
-                Result.removePhoto(photo);
+            if (Result.getPhotoPath(0) == photo.path) {
+                Result.removePhoto(photo)
             } else {
-                Result.removePhoto(0);
-                Result.addPhoto(photo);
+                Result.removePhoto(0)
+                Result.addPhoto(photo)
             }
         } else {
-            Result.addPhoto(photo);
+            Result.addPhoto(photo)
         }
-        toggleSelector();
+        toggleSelector()
     }
 
-    private void shouldShowMenuDone() {
+    private fun shouldShowMenuDone() {
         if (Result.isEmpty()) {
-            if (View.VISIBLE == tvDone.getVisibility()) {
-                ScaleAnimation scaleHide = new ScaleAnimation(1f, 0f, 1f, 0f);
-                scaleHide.setDuration(200);
-                tvDone.startAnimation(scaleHide);
+            if (View.VISIBLE == binding.tvDone.visibility) {
+                val scaleHide = ScaleAnimation(1f, 0f, 1f, 0f)
+                scaleHide.duration = 200
+                binding.tvDone.startAnimation(scaleHide)
             }
-            tvDone.setVisibility(View.GONE);
-            flFragment.setVisibility(View.GONE);
+            binding.tvDone.gone()
+            binding.flFragment.gone()
         } else {
-            if (View.GONE == tvDone.getVisibility()) {
-                ScaleAnimation scaleShow = new ScaleAnimation(0f, 1f, 0f, 1f);
-                scaleShow.setDuration(200);
-                tvDone.startAnimation(scaleShow);
+            if (View.GONE == binding.tvDone.visibility) {
+                val scaleShow = ScaleAnimation(0f, 1f, 0f, 1f)
+                scaleShow.duration = 200
+                binding.tvDone.startAnimation(scaleShow)
             }
-            flFragment.setVisibility(View.VISIBLE);
-            tvDone.setVisibility(View.VISIBLE);
-            tvDone.setText(getString(R.string.selector_action_done_easy_photos, Result.count(),
-                    Setting.count));
+            binding.flFragment.visible()
+            binding.tvDone.visible()
+            binding.tvDone.text = getString(
+                R.string.selector_action_done_easy_photos,
+                Result.count(),
+                Setting.count
+            )
         }
     }
 
-    @Override
-    public void onPreviewPhotoClick(int position) {
-        String path = Result.getPhotoPath(position);
-        int size = photos.size();
-        for (int i = 0; i < size; i++) {
-            if (TextUtils.equals(path, photos.get(i).path)) {
-                rvPhotos.scrollToPosition(i);
-                lastPosition = i;
-                tvNumber.setText(getString(R.string.preview_current_number_easy_photos,
-                        lastPosition + 1, photos.size()));
-                previewFragment.setSelectedPosition(position);
-                toggleSelector();
-                return;
+    override fun onPreviewPhotoClick(position: Int) {
+        val path = Result.getPhotoPath(position)
+        val size = photos.size
+        for (i in 0 until size) {
+            if (TextUtils.equals(path, photos[i].path)) {
+                binding.rvPhotos.scrollToPosition(i)
+                lastPosition = i
+                binding.tvNumber.text = getString(
+                    R.string.preview_current_number_easy_photos,
+                    lastPosition + 1, photos.size
+                )
+                previewFragment!!.setSelectedPosition(position)
+                toggleSelector()
+                return
             }
         }
     }
 
-    private void setClick(@IdRes int... ids) {
-        for (int id : ids) {
-            findViewById(id).setOnClickListener(this);
+    private fun setClick(vararg views: View) {
+        for (v in views) {
+            v.setOnClickListener(this)
         }
     }
 
-    private void setClick(View... views) {
-        for (View v : views) {
-            v.setOnClickListener(this);
+    companion object {
+        fun start(act: Activity, albumItemIndex: Int, currIndex: Int) {
+            val intent = Intent(act, PreviewActivity::class.java)
+            intent.putExtra(Key.PREVIEW_ALBUM_ITEM_INDEX, albumItemIndex)
+            intent.putExtra(Key.PREVIEW_PHOTO_INDEX, currIndex)
+            act.startActivityForResult(intent, Code.REQUEST_PREVIEW_ACTIVITY)
         }
+
+        /**
+         * 一些旧设备在UI小部件更新之间需要一个小延迟
+         * and a change of the status and navigation bar.
+         */
+        private const val UI_ANIMATION_DELAY = 300
     }
 }

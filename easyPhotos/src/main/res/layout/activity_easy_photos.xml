@@ -7,9 +7,7 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true">
 
-    <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        xmlns:tools="http://schemas.android.com/tools"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/easy_photos_bg_primary"
@@ -76,7 +74,7 @@
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent">
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv_original"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -91,7 +89,7 @@
                 android:text="@string/original_easy_photos"
                 android:textColor="@color/easy_photos_fg_primary" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv_puzzle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -106,7 +104,7 @@
                 android:text="@string/puzzle_easy_photos"
                 android:textColor="@color/easy_photos_fg_primary" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv_clear"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -155,7 +153,7 @@
             app:layout_constraintTop_toTopOf="@+id/tv_album_items"
             app:srcCompat="@drawable/ic_album_items_name_easy_photos" />
 
-        <ImageView
+        <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/iv_second_menu"
             android:layout_width="wrap_content"
             android:layout_height="0dp"
@@ -202,7 +200,7 @@
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/m_tool_bar" />
 
-        <ImageView
+        <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/iv_back"
             android:layout_width="42dp"
             android:layout_height="42dp"
@@ -212,7 +210,7 @@
             app:layout_constraintTop_toTopOf="@+id/m_tool_bar"
             app:srcCompat="@drawable/ic_arrow_back_easy_photos" />
 
-        <TextView
+        <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/tv_title"
             android:layout_width="wrap_content"
             android:layout_height="0dp"
@@ -254,7 +252,7 @@
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/m_tool_bar_bottom_line">
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv_permission"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -262,7 +260,7 @@
                 android:textColor="@color/easy_photos_fg_accent"
                 android:textStyle="bold" />
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_above="@+id/tv_permission"

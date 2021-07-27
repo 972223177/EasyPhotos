@@ -21,7 +21,7 @@
             style="?metaButtonBarStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/easy_photos_status_bar">
+            >
 
             <RelativeLayout
                 android:id="@+id/m_top_bar"
@@ -33,7 +33,7 @@
                 android:fitsSystemWindows="true"
                 android:focusable="true">
 
-                <ImageView
+                <androidx.appcompat.widget.AppCompatImageView
                     android:id="@+id/iv_back"
                     android:layout_width="42dp"
                     android:layout_height="match_parent"
@@ -124,7 +124,7 @@
                 android:textStyle="bold"
                 android:visibility="gone" />
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv_original"
                 android:layout_width="wrap_content"
                 android:layout_height="42dp"
@@ -136,7 +136,7 @@
                 android:textStyle="bold" />
 
 
-            <TextView
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv_selector"
                 android:layout_width="wrap_content"
                 android:layout_height="42dp"
@@ -148,7 +148,7 @@
                 android:textColor="@color/easy_photos_fg_primary"
                 android:textStyle="bold" />
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/iv_selector"
                 android:layout_width="wrap_content"
                 android:layout_height="42dp"

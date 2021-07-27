@@ -7,9 +7,14 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.appcompat.widget.AppCompatImageView
+import androidx.appcompat.widget.AppCompatTextView
 import androidx.recyclerview.widget.RecyclerView
 import com.huantansheng.easyphotos.R
 import com.huantansheng.easyphotos.constant.Type
+import com.huantansheng.easyphotos.databinding.ItemAdEasyPhotosBinding
+import com.huantansheng.easyphotos.databinding.ItemCameraEasyPhotosBinding
+import com.huantansheng.easyphotos.databinding.ItemRvPhotosEasyPhotosBinding
 import com.huantansheng.easyphotos.models.ad.AdViewHolder
 import com.huantansheng.easyphotos.models.album.entity.Photo
 import com.huantansheng.easyphotos.result.Result
@@ -25,12 +30,10 @@ import java.util.*
  * Created by huan on 2017/10/23.
  */
 class PhotosAdapter(
-    cxt: Context,
     private val dataList: ArrayList<Any?>,
     private val listener: OnClickListener
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private val mInflater: LayoutInflater = LayoutInflater.from(cxt)
     private var unable: Boolean = Result.count() == Setting.count
     private val isSingle: Boolean = Setting.count == 1
     private var singlePosition = 0
@@ -45,22 +48,22 @@ class PhotosAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         when (viewType) {
             TYPE_AD -> return AdViewHolder(
-                mInflater.inflate(
-                    R.layout.item_ad_easy_photos,
+                ItemAdEasyPhotosBinding.inflate(
+                    LayoutInflater.from(parent.context),
                     parent,
                     false
                 )
             )
             TYPE_CAMERA -> return CameraViewHolder(
-                mInflater.inflate(
-                    R.layout.item_camera_easy_photos,
+                ItemCameraEasyPhotosBinding.inflate(
+                    LayoutInflater.from(parent.context),
                     parent,
                     false
                 )
             )
             else -> return PhotoViewHolder(
-                mInflater.inflate(
-                    R.layout.item_rv_photos_easy_photos,
+                ItemRvPhotosEasyPhotosBinding.inflate(
+                    LayoutInflater.from(parent.context),
                     parent,
                     false
                 )
@@ -258,19 +261,19 @@ class PhotosAdapter(
         fun onSelectorChanged()
     }
 
-    private inner class CameraViewHolder(itemView: View) :
-        RecyclerView.ViewHolder(itemView) {
-        val flCamera: FrameLayout = itemView.findViewById(R.id.fl_camera)
+    private inner class CameraViewHolder(binding: ItemCameraEasyPhotosBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        val flCamera: FrameLayout = binding.flCamera
 
     }
 
-    inner class PhotoViewHolder internal constructor(itemView: View) :
-        RecyclerView.ViewHolder(itemView) {
-        val ivPhoto: PressedImageView = itemView.findViewById(R.id.iv_photo)
-        val tvSelector: TextView = itemView.findViewById(R.id.tv_selector)
-        val vSelector: View = itemView.findViewById(R.id.v_selector)
-        val tvType: TextView = itemView.findViewById(R.id.tv_type)
-        val ivVideo: ImageView = itemView.findViewById(R.id.iv_play)
+    inner class PhotoViewHolder internal constructor(binding: ItemRvPhotosEasyPhotosBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        val ivPhoto: PressedImageView = binding.ivPhoto
+        val tvSelector: AppCompatTextView = binding.tvSelector
+        val vSelector: View = binding.vSelector
+        val tvType: AppCompatTextView = binding.tvType
+        val ivVideo: AppCompatImageView = binding.ivPlay
 
     }
 
