@@ -14,7 +14,7 @@
         android:id="@+id/m_bar_root_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fitsSystemWindows="true">
+       >
 
         <FrameLayout
             android:id="@+id/m_top_bar_layout"
@@ -28,9 +28,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="42dp"
                 android:layout_gravity="top"
-                android:background="@color/easy_photos_bar_primary"
+                android:background="@color/easy_photos_bar_primary_translation"
                 android:clickable="true"
-                android:fitsSystemWindows="true"
                 android:focusable="true">
 
                 <androidx.appcompat.widget.AppCompatImageView
@@ -92,7 +91,7 @@
             android:layout_gravity="bottom"
             android:background="@color/easy_photos_bar_primary_translation"
             android:clickable="true"
-            android:fitsSystemWindows="true"
+
             android:focusable="true">
 
             <FrameLayout

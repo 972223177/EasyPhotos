@@ -4,8 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.TextUtils
 import android.view.View
 import android.view.WindowManager
@@ -18,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.gyf.immersionbar.ImmersionBar
 import com.huantansheng.easyphotos.R
 import com.huantansheng.easyphotos.constant.Code
 import com.huantansheng.easyphotos.constant.Key
@@ -26,11 +25,9 @@ import com.huantansheng.easyphotos.models.album.AlbumModel
 import com.huantansheng.easyphotos.models.album.entity.Photo
 import com.huantansheng.easyphotos.result.Result
 import com.huantansheng.easyphotos.setting.Setting
-
 import com.huantansheng.easyphotos.ui.PreviewFragment.OnPreviewFragmentClickListener
 import com.huantansheng.easyphotos.ui.adapter.PreviewPhotosAdapter
 import com.huantansheng.easyphotos.utils.Color.ColorUtils
-import com.huantansheng.easyphotos.utils.system.SystemUtils
 import com.huantansheng.easyphotos.utils.view.gone
 import com.huantansheng.easyphotos.utils.view.visible
 import java.util.*
@@ -40,19 +37,8 @@ import java.util.*
  */
 class PreviewActivity : AppCompatActivity(), PreviewPhotosAdapter.OnClickListener,
     View.OnClickListener, OnPreviewFragmentClickListener {
-    private val mHideHandler = Handler(Looper.getMainLooper())
-    private val mHidePart2Runnable =
-        Runnable { SystemUtils.getInstance().systemUiHide(this@PreviewActivity, decorView) }
 
-    private val mShowPart2Runnable = Runnable { // 延迟显示UI元素
-        binding.mBottomBar.visible()
-        binding.mTopBarLayout.visible()
-    }
     private var mVisible = false
-
-    private val decorView: View by lazy(LazyThreadSafetyMode.NONE) {
-        window.decorView
-    }
 
     private val binding by lazy(LazyThreadSafetyMode.NONE) {
         ActivityPreviewEasyPhotosBinding.inflate(layoutInflater)
@@ -75,8 +61,12 @@ class PreviewActivity : AppCompatActivity(), PreviewPhotosAdapter.OnClickListene
     private var statusColor = 0
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        SystemUtils.getInstance().systemUiInit(this, decorView)
         setContentView(binding.root)
+        ImmersionBar.with(this)
+            .titleBar(binding.mTopBar)
+            .statusBarDarkFont(false)
+            .autoNavigationBarDarkModeEnable(true)
+            .init()
         hideActionBar()
         adaptationStatusBar()
         if (null == AlbumModel.instance) {
@@ -86,6 +76,7 @@ class PreviewActivity : AppCompatActivity(), PreviewPhotosAdapter.OnClickListene
         initData()
         initView()
     }
+
     @Suppress("DEPRECATION")
     private fun adaptationStatusBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -140,21 +131,17 @@ class PreviewActivity : AppCompatActivity(), PreviewPhotosAdapter.OnClickListene
         binding.mTopBarLayout.startAnimation(hideAnimation)
         mVisible = false
 
-        // Schedule a runnable to remove the status and navigation bar after a delay
-        mHideHandler.removeCallbacks(mShowPart2Runnable)
-        mHideHandler.postDelayed(mHidePart2Runnable, UI_ANIMATION_DELAY.toLong())
     }
 
     private fun show() {
-        // Show the system bar
-        if (Build.VERSION.SDK_INT >= 16) {
-            SystemUtils.getInstance().systemUiShow(this, decorView)
-        }
+
         mVisible = true
 
         // Schedule a runnable to display UI elements after a delay
-        mHideHandler.removeCallbacks(mHidePart2Runnable)
-        mHideHandler.post(mShowPart2Runnable)
+        runOnUiThread {
+            binding.mBottomBar.visible()
+            binding.mTopBarLayout.visible()
+        }
     }
 
     override fun onPhotoClick() {
@@ -177,19 +164,6 @@ class PreviewActivity : AppCompatActivity(), PreviewPhotosAdapter.OnClickListene
     }
 
     private fun initView() {
-        if (!SystemUtils.getInstance().hasNavigationBar(this)) {
-            val mRootView = findViewById<View>(R.id.m_root_view) as FrameLayout
-            mRootView.fitsSystemWindows = true
-            binding.mTopBarLayout.setPadding(
-                0,
-                SystemUtils.getInstance().getStatusBarHeight(this),
-                0,
-                0
-            )
-            if (ColorUtils.isWhiteColor(statusColor)) {
-                SystemUtils.getInstance().setStatusDark(this, true)
-            }
-        }
         previewFragment =
             supportFragmentManager.findFragmentById(R.id.fragment_preview) as PreviewFragment?
         if (Setting.showOriginalMenu) {
